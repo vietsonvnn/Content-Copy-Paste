@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemini Content Writer</title>
+  <link rel="stylesheet" href="css/popup.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-title">
+        <span class="logo">✍️</span>
+        <h1>Content Writer</h1>
+      </div>
+      <div class="header-actions">
+        <button class="btn-icon" id="resetBtn" title="Bài mới (Reset)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Single Tab Content -->
+    <div class="tab-content active" id="main-tab">
+      <!-- Quick Guide -->
+      <div class="quick-guide">
+        <span class="guide-icon">💡</span>
+        <span class="guide-text">Paste lệnh → BẮT ĐẦU → Click nút phần → Bôi đen text trên Gemini → <kbd id="hotkeyHint">Ctrl+Shift+C</kbd></span>
+      </div>
+
+      <!-- Progress Overview -->
+      <div class="progress-overview">
+        <div class="progress-info">
+          <span class="progress-text"><span id="totalWritten">0</span> / <span id="totalTarget">0</span> từ</span>
+          <span class="progress-percent" id="totalPercent">0%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="totalProgressBar" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Total Target + Hotkey Row -->
+      <div class="card compact">
+        <div class="inline-form-row">
+          <div class="inline-form">
+            <label>Target:</label>
+            <input type="number" id="totalTargetInput" placeholder="3000" min="100">
+            <span class="unit-label">từ</span>
+          </div>
+          <div class="hotkey-inline" id="hotkeyRecorder">
+            <span class="hotkey-label">Hotkey:</span>
+            <div class="hotkey-display-inline" id="hotkeyDisplay">
+              <span class="hotkey-key">Ctrl</span>
+              <span class="hotkey-plus">+</span>
+              <span class="hotkey-key">Shift</span>
+              <span class="hotkey-plus">+</span>
+              <span class="hotkey-key">C</span>
+            </div>
+            <div class="hotkey-recording" id="hotkeyRecording" style="display: none;">
+              <span class="recording-text">Nhấn phím...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Command Input - 2 Columns -->
+      <div class="card">
+        <div class="card-header">
+          <h3>📝 Danh sách lệnh</h3>
+          <button class="btn-text btn-sm" id="clearCommands">🗑️ Xóa lệnh</button>
+        </div>
+        <div class="command-input-grid">
+          <div class="command-col command-col-main">
+            <label class="col-label">Lệnh có sẵn (paste từ Excel)</label>
+            <textarea id="commandInput" placeholder="Viết phần 1 với 300 từ bám sát outline
+Viết phần 2 với 400 từ bám sát outline
+Viết phần 3.1 với 500 từ bám sát outline"></textarea>
+          </div>
+          <div class="command-col command-col-custom">
+            <label class="col-label">✨ Lệnh bổ sung (tự viết)</label>
+            <textarea id="customCommandInput" placeholder="VD: Viết thêm 200 từ cho phần X
+Viết lại đoạn mở đầu..."></textarea>
+          </div>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-primary btn-lg" id="parseCommands">🚀 BẮT ĐẦU</button>
+        </div>
+      </div>
+
+      <!-- Command Buttons -->
+      <div class="card" id="commandButtonsCard" style="display: none;">
+        <div class="card-header">
+          <h3>🎯 Nút lệnh</h3>
+          <span class="parsed-count" id="parsedCount">0 lệnh</span>
+        </div>
+        <div class="command-buttons" id="commandButtons">
+          <!-- Buttons will be generated here -->
+        </div>
+      </div>
+
+      <!-- Clipboard Content Table -->
+      <div class="card" id="clipboardCard" style="display: none;">
+        <div class="card-header">
+          <h3>📋 Nội dung đã viết</h3>
+          <div class="card-header-actions">
+            <button class="btn-text" id="copyAllBtn">📋 Sao chép tất cả</button>
+            <button class="btn-text" id="exportBtn">📤 Xuất file</button>
+          </div>
+        </div>
+        <div class="clipboard-table-wrapper" id="clipboardTableWrapper">
+          <!-- Content sections will be generated here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Capture Result Modal -->
+    <div class="modal" id="captureModal">
+      <div class="modal-overlay"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>📊 Kết quả Capture - <span id="modalPartLabel">Phần X</span></h3>
+          <button class="btn-close" id="closeModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <!-- Captured Text Preview -->
+          <div class="modal-captured-text">
+            <div class="modal-captured-header">
+              <span>📝 Nội dung đã capture:</span>
+              <button class="btn-text btn-sm" id="toggleCapturedText">Thu gọn ▲</button>
+            </div>
+            <div class="modal-captured-content" id="modalCapturedContent">
+              <!-- Text will be shown here -->
+            </div>
+          </div>
+
+          <!-- Stats -->
+          <div class="capture-stats">
+            <div class="capture-stat-row">
+              <div class="capture-stat">
+                <span class="capture-stat-label">Phần này</span>
+                <div class="capture-stat-values">
+                  <span class="captured-value" id="capturedWords">0</span>
+                  <span class="captured-separator">/</span>
+                  <span class="target-value" id="targetWords">0</span>
+                  <span class="unit">từ</span>
+                </div>
+                <div class="progress-bar small">
+                  <div class="progress-fill" id="captureProgressBar" style="width: 0%"></div>
+                </div>
+                <div class="capture-diff" id="captureDiff">+0 từ</div>
+              </div>
+              <div class="capture-stat">
+                <span class="capture-stat-label">Tổng bài viết</span>
+                <div class="capture-stat-values">
+                  <span class="captured-value" id="modalTotalWritten">0</span>
+                  <span class="captured-separator">/</span>
+                  <span class="target-value" id="modalTotalTarget">0</span>
+                  <span class="unit">từ</span>
+                </div>
+                <div class="progress-bar small">
+                  <div class="progress-fill" id="modalTotalProgressBar" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="capture-actions">
+            <button class="capture-action" id="actionContinue">
+              <span class="action-icon">▶</span>
+              <div class="action-info">
+                <span class="action-title">Viết tiếp</span>
+                <span class="action-desc">Paste + Auto Enter</span>
+              </div>
+            </button>
+            <button class="capture-action" id="actionRewrite">
+              <span class="action-icon">✏️</span>
+              <div class="action-info">
+                <span class="action-title">Viết lại</span>
+                <span class="action-desc">Chỉ Paste, chờ bạn chỉnh & Enter</span>
+              </div>
+            </button>
+            <button class="capture-action action-done" id="actionDone">
+              <span class="action-icon">✓</span>
+              <div class="action-info">
+                <span class="action-title">Done</span>
+                <span class="action-desc">Chấp nhận kết quả này</span>
+              </div>
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelCapture">Hủy</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Content Modal -->
+    <div class="modal" id="viewContentModal">
+      <div class="modal-overlay"></div>
+      <div class="modal-content modal-lg">
+        <div class="modal-header">
+          <h3>📝 <span id="viewModalPartLabel">Phần X</span> - <span id="viewModalWordCount">0 từ</span></h3>
+          <button class="btn-close" id="closeViewModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="view-content-text" id="viewContentText">
+            <!-- Full content will be shown here -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="copyAll">📋 Sao chép tất cả</button>
+        </div>
+      </div>
+    </div>
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+  </div>
+
+  <script src="js/popup.js"></script>
+</body>
+</html>

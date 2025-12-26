@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mockup - Giải pháp mở rộng Textarea</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-light: #eef2ff;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --bg: #ffffff;
+      --bg-secondary: #f8fafc;
+      --text: #1e293b;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --border: #e2e8f0;
+      --border-light: #f1f5f9;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+      --space-sm: 8px;
+      --space-md: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f1f5f9;
+      padding: 20px;
+      color: var(--text);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+      color: var(--primary);
+    }
+
+    .solutions-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .solution-card {
+      background: white;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+    }
+
+    .solution-header {
+      background: var(--primary);
+      color: white;
+      padding: 12px 16px;
+      font-weight: 600;
+    }
+
+    .solution-header span {
+      opacity: 0.8;
+      font-weight: normal;
+      font-size: 12px;
+      display: block;
+      margin-top: 4px;
+    }
+
+    .solution-body {
+      padding: 16px;
+      height: 450px;
+      overflow-y: auto;
+    }
+
+    /* Common styles */
+    .clipboard-section {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+    }
+
+    .clipboard-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .clipboard-section-header:hover {
+      background: var(--border-light);
+    }
+
+    .clipboard-section.expanded .clipboard-section-header {
+      background: var(--primary-light);
+    }
+
+    .clipboard-section-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .status-icon {
+      width: 16px;
+      text-align: center;
+    }
+
+    .status-icon.done { color: var(--success); }
+    .status-icon.pending { color: var(--text-muted); }
+
+    .clipboard-section-stats {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: monospace;
+    }
+
+    .word-diff.positive { color: var(--success); }
+    .word-diff.negative { color: var(--danger); }
+
+    .clipboard-section-content {
+      display: none;
+      padding: 12px;
+      background: white;
+    }
+
+    .clipboard-section.expanded .clipboard-section-content {
+      display: block;
+    }
+
+    .clipboard-textarea {
+      width: 100%;
+      padding: 10px;
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1.6;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      resize: vertical;
+      background: var(--bg);
+    }
+
+    .clipboard-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    .toggle-icon {
+      font-size: 10px;
+      color: var(--text-muted);
+      transition: transform 0.2s;
+    }
+
+    .clipboard-section.expanded .toggle-icon {
+      transform: rotate(180deg);
+    }
+
+    /* ========================================
+       Solution 1: Mở rộng khi expand
+       ======================================== */
+    .solution1 .clipboard-textarea {
+      min-height: 60px;
+      max-height: 80px;
+      transition: all 0.3s ease;
+    }
+
+    .solution1 .clipboard-section.expanded .clipboard-textarea {
+      min-height: 200px;
+      max-height: 300px;
+    }
+
+    /* ========================================
+       Solution 2: Full-screen Modal
+       ======================================== */
+    .solution2 .edit-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .solution2 .edit-btn:hover {
+      background: #4338ca;
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .edit-modal {
+      background: white;
+      border-radius: var(--radius-md);
+      width: 90%;
+      max-width: 800px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .edit-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .edit-modal-header h3 {
+      font-size: 16px;
+    }
+
+    .edit-modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    .edit-modal-body {
+      flex: 1;
+      padding: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .edit-modal-body textarea {
+      flex: 1;
+      width: 100%;
+      min-height: 400px;
+      padding: 16px;
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.8;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      resize: none;
+    }
+
+    .edit-modal-body textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .edit-modal-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-secondary {
+      background: var(--bg-secondary);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    /* ========================================
+       Solution 3: Chỉ hiện 1 phần active
+       ======================================== */
+    .solution3 .clipboard-section {
+      transition: all 0.3s ease;
+    }
+
+    .solution3 .clipboard-section:not(.expanded) {
+      opacity: 0.6;
+    }
+
+    .solution3 .clipboard-section.expanded {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px var(--primary-light);
+    }
+
+    .solution3 .clipboard-section.expanded .clipboard-textarea {
+      min-height: 280px;
+    }
+
+    .solution3 .clipboard-section:not(.expanded) .clipboard-section-header {
+      padding: 6px 12px;
+    }
+
+    /* ========================================
+       Solution 4: Tabs cho từng phần
+       ======================================== */
+    .solution4 .tabs-nav {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .solution4 .tab-btn {
+      padding: 6px 12px;
+      border: 1px solid var(--border);
+      background: var(--bg-secondary);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .solution4 .tab-btn:hover {
+      background: var(--border-light);
+    }
+
+    .solution4 .tab-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .solution4 .tab-btn .status {
+      font-size: 10px;
+    }
+
+    .solution4 .tab-content {
+      display: none;
+    }
+
+    .solution4 .tab-content.active {
+      display: block;
+    }
+
+    .solution4 .tab-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .solution4 .tab-header h4 {
+      font-size: 14px;
+    }
+
+    .solution4 .tab-stats {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .solution4 .tab-textarea {
+      width: 100%;
+      min-height: 320px;
+      padding: 12px;
+      font-family: inherit;
+      font-size: 13px;
+      line-height: 1.7;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      resize: vertical;
+    }
+
+    .solution4 .tab-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--primary-light);
+    }
+
+    /* Char highlighting for demo */
+    .char-error {
+      color: #dc2626;
+      font-weight: 700;
+      background: #fef2f2;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    .char-warning {
+      color: #d97706;
+      font-weight: 600;
+      background: #fffbeb;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    .preview-text {
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      padding: 8px;
+      background: var(--bg-secondary);
+      border-radius: var(--radius-sm);
+      max-height: 60px;
+      overflow: hidden;
+    }
+
+    /* Voting section */
+    .voting-section {
+      margin-top: 30px;
+      padding: 20px;
+      background: white;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .voting-section h2 {
+      margin-bottom: 16px;
+      font-size: 18px;
+    }
+
+    .vote-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .vote-btn {
+      padding: 12px 16px;
+      border: 2px solid var(--border);
+      background: white;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s;
+    }
+
+    .vote-btn:hover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .vote-btn.selected {
+      border-color: var(--primary);
+      background: var(--primary);
+      color: white;
+    }
+
+    .comparison-table {
+      margin-top: 30px;
+      background: white;
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      max-width: 1000px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .comparison-table table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .comparison-table th,
+    .comparison-table td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .comparison-table th {
+      background: var(--primary);
+      color: white;
+      font-weight: 600;
+    }
+
+    .comparison-table tr:hover {
+      background: var(--bg-secondary);
+    }
+
+    .comparison-table .check {
+      color: var(--success);
+    }
+
+    .comparison-table .cross {
+      color: var(--danger);
+    }
+  </style>
+</head>
+<body>
+  <h1>🧪 Test các giải pháp mở rộng Textarea</h1>
+
+  <div class="solutions-grid">
+    <!-- Solution 1: Mở rộng khi expand -->
+    <div class="solution-card solution1">
+      <div class="solution-header">
+        Giải pháp 1: Mở rộng khi expand
+        <span>Click vào phần để mở rộng textarea lớn hơn</span>
+      </div>
+      <div class="solution-body">
+        <div class="clipboard-section expanded" onclick="this.classList.toggle('expanded')">
+          <div class="clipboard-section-header">
+            <div class="clipboard-section-title">
+              <span class="status-icon done">✓</span>
+              <span>Phần 1</span>
+              <span class="toggle-icon">▼</span>
+            </div>
+            <div class="clipboard-section-stats">
+              520/500 <span class="word-diff positive">(+20)</span>
+            </div>
+          </div>
+          <div class="clipboard-section-content">
+            <textarea class="clipboard-textarea" placeholder="Nhập nội dung phần 1...">Đây là nội dung mẫu cho phần 1. Khi bạn click vào phần này, textarea sẽ tự động mở rộng để bạn có nhiều không gian hơn để chỉnh sửa.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</textarea>
+          </div>
+        </div>
+
+        <div class="clipboard-section" onclick="this.classList.toggle('expanded')">
+          <div class="clipboard-section-header">
+            <div class="clipboard-section-title">
+              <span class="status-icon done">✓</span>
+              <span>Phần 2</span>
+              <span class="toggle-icon">▼</span>
+            </div>
+            <div class="clipboard-section-stats">
+              480/500 <span class="word-diff negative">(-20)</span>
+            </div>
+          </div>
+          <div class="clipboard-section-content">
+            <textarea class="clipboard-textarea" placeholder="Nhập nội dung phần 2...">Nội dung phần 2 ở đây...</textarea>
+          </div>
+        </div>
+
+        <div class="clipboard-section" onclick="this.classList.toggle('expanded')">
+          <div class="clipboard-section-header">
+            <div class="clipboard-section-title">
+              <span class="status-icon pending">○</span>
+              <span>Phần 3</span>
+              <span class="toggle-icon">▼</span>
+            </div>
+            <div class="clipboard-section-stats">
+              0/600
+            </div>
+          </div>
+          <div class="clipboard-section-content">
+            <textarea class="clipboard-textarea" placeholder="Nhập nội dung phần 3..."></textarea>
+          </div>
+        </div>
+
+        <div class="clipboard-section" onclick="this.classList.toggle('expanded')">
+          <div class="clipboard-section-header">
+            <div class="clipboard-section-title">
+              <span class="status-icon pending">○</span>
+              <span>Phần 4</span>
+              <span class="toggle-icon">▼</span>
+            </div>
+            <div class="clipboard-section-stats">
+              0/400
+            </div>
+          </div>
+          <div class="clipboard-section-content">
+            <textarea class="clipboard-textarea" placeholder="Nhập nội dung phần 4..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Solution 2: Full-screen Modal -->
+    <div class="solution-card solution2">
+      <div class="solution-header">
+        Giải pháp 2: Full-screen Modal
+        <span>Click nút "Sửa" để mở modal toàn màn hình</span>
+      </div>
+      <div class="solution-body">
+        <div class="clipboard-section">
+          <div class="clipboard-section-header">
+            <div class="clipboard-section-title">
+              <span class="status-icon done">✓</span>
+              <span>Phần 1</span>
+            </div>
+            <div class="clipboard-section-stats">
+              520/500 <span class="word-diff positive">(+20)</span>
+              <button class="edit-btn" onclick="openModal(1)">✏️ Sửa</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="clipboard-section">
+          <div class="clipboard-section-header">
+            <div class="clipboard-section-title">
+              <span class="status-icon done">✓</span>
+              <span>Phần 2</span>
+            </div>
+            <div class="clipboard-section-stats">
+              480/500 <span class="word-diff negative">(-20)</span>
+              <button class="edit-btn" onclick="openModal(2)">✏️ Sửa</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="clipboard-section">
+          <div class="clipboard-section-header">
+            <div class="clipboard-section-title">
+              <span class="status-icon pending">○</span>
+              <span>Phần 3</span>
+            </div>
+            <div class="clipboard-section-stats">
+              0/600
+              <button class="edit-btn" onclick="openModal(3)">✏️ Sửa</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="clipboard-section">
+          <div class="clipboard-section-header">
+            <div class="clipboard-section-title">
+              <span class="status-icon pending">○</span>
+              <span>Phần 4</span>
+            </div>
+            <div class="clipboard-section-stats">
+              0/400
+              <button class="edit-btn" onclick="openModal(4)">✏️ Sửa</button>
+            </div>
+          </div>
+        </div>
+
+        <p style="margin-top: 16px; font-size: 12px; color: var(--text-muted);">
+          💡 Ưu điểm: Không gian lớn nhất, có thể highlight special chars<br>
+          ⚠️ Nhược điểm: Cần thêm 1 click để mở modal
+        </p>
+      </div>
+    </div>
+
+    <!-- Solution 3: Chỉ hiện 1 phần active -->
+    <div class="solution-card solution3">
+      <div class="solution-header">
+        Giải pháp 3: Chỉ 1 phần active
+        <span>Các phần khác sẽ thu nhỏ khi có 1 phần được chọn</span>
+      </div>
+      <div class="solution-body">
+        <div class="clipboard-section expanded" onclick="selectSection3(this)">
+          <div class="clipboard-section-header">
+            <div class="clipboard-section-title">
+              <span class="status-icon done">✓</span>
+              <span>Phần 1</span>
+              <span class="toggle-icon">▼</span>
+            </div>
+            <div class="clipboard-section-stats">
+              520/500 <span class="word-diff positive">(+20)</span>
+            </div>
+          </div>
+          <div class="clipboard-section-content">
+            <textarea class="clipboard-textarea" placeholder="Nhập nội dung phần 1...">Đây là nội dung mẫu cho phần 1. Textarea này chiếm nhiều không gian hơn vì các phần khác đã được thu nhỏ.
+
+Bạn có thể tập trung vào việc chỉnh sửa phần này mà không bị phân tâm.</textarea>
+          </div>
+        </div>
+
+        <div class="clipboard-section" onclick="selectSection3(this)">
+          <div class="clipboard-section-header">
+            <div class="clipboard-section-title">
+              <span class="status-icon done">✓</span>
+              <span>Phần 2</span>
+            </div>
+            <div class="clipboard-section-stats">
+              480/500
+            </div>
+          </div>
+          <div class="clipboard-section-content">
+            <textarea class="clipboard-textarea"></textarea>
+          </div>
+        </div>
+
+        <div class="clipboard-section" onclick="selectSection3(this)">
+          <div class="clipboard-section-header">
+            <div class="clipboard-section-title">
+              <span class="status-icon pending">○</span>
+              <span>Phần 3</span>
+            </div>
+            <div class="clipboard-section-stats">
+              0/600
+            </div>
+          </div>
+          <div class="clipboard-section-content">
+            <textarea class="clipboard-textarea"></textarea>
+          </div>
+        </div>
+
+        <div class="clipboard-section" onclick="selectSection3(this)">
+          <div class="clipboard-section-header">
+            <div class="clipboard-section-title">
+              <span class="status-icon pending">○</span>
+              <span>Phần 4</span>
+            </div>
+            <div class="clipboard-section-stats">
+              0/400
+            </div>
+          </div>
+          <div class="clipboard-section-content">
+            <textarea class="clipboard-textarea"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Solution 4: Tabs cho từng phần -->
+    <div class="solution-card solution4">
+      <div class="solution-header">
+        Giải pháp 4: Tabs Navigation
+        <span>Chuyển đổi giữa các phần bằng tabs</span>
+      </div>
+      <div class="solution-body">
+        <div class="tabs-nav">
+          <button class="tab-btn active" onclick="switchTab4(0, this)">
+            <span class="status">✓</span> 1
+          </button>
+          <button class="tab-btn" onclick="switchTab4(1, this)">
+            <span class="status">✓</span> 2
+          </button>
+          <button class="tab-btn" onclick="switchTab4(2, this)">
+            <span class="status">○</span> 3
+          </button>
+          <button class="tab-btn" onclick="switchTab4(3, this)">
+            <span class="status">○</span> 4
+          </button>
+          <button class="tab-btn" onclick="switchTab4(4, this)">
+            <span class="status">○</span> 5
+          </button>
+          <button class="tab-btn" onclick="switchTab4(5, this)">
+            <span class="status">○</span> 6
+          </button>
+        </div>
+
+        <div class="tab-content active" data-tab="0">
+          <div class="tab-header">
+            <h4>📝 Phần 1</h4>
+            <div class="tab-stats">520/500 từ <span class="word-diff positive">(+20)</span></div>
+          </div>
+          <textarea class="tab-textarea" placeholder="Nhập nội dung phần 1...">Đây là nội dung mẫu cho phần 1. Với layout tabs, bạn có toàn bộ không gian để chỉnh sửa.
+
+Textarea chiếm gần như toàn bộ chiều cao của card, cho phép bạn xem và edit nhiều nội dung hơn.
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.</textarea>
+        </div>
+
+        <div class="tab-content" data-tab="1">
+          <div class="tab-header">
+            <h4>📝 Phần 2</h4>
+            <div class="tab-stats">480/500 từ <span class="word-diff negative">(-20)</span></div>
+          </div>
+          <textarea class="tab-textarea" placeholder="Nhập nội dung phần 2...">Nội dung phần 2...</textarea>
+        </div>
+
+        <div class="tab-content" data-tab="2">
+          <div class="tab-header">
+            <h4>📝 Phần 3</h4>
+            <div class="tab-stats">0/600 từ</div>
+          </div>
+          <textarea class="tab-textarea" placeholder="Nhập nội dung phần 3..."></textarea>
+        </div>
+
+        <div class="tab-content" data-tab="3">
+          <div class="tab-header">
+            <h4>📝 Phần 4</h4>
+            <div class="tab-stats">0/400 từ</div>
+          </div>
+          <textarea class="tab-textarea" placeholder="Nhập nội dung phần 4..."></textarea>
+        </div>
+
+        <div class="tab-content" data-tab="4">
+          <div class="tab-header">
+            <h4>📝 Phần 5</h4>
+            <div class="tab-stats">0/350 từ</div>
+          </div>
+          <textarea class="tab-textarea" placeholder="Nhập nội dung phần 5..."></textarea>
+        </div>
+
+        <div class="tab-content" data-tab="5">
+          <div class="tab-header">
+            <h4>📝 Phần 6</h4>
+            <div class="tab-stats">0/300 từ</div>
+          </div>
+          <textarea class="tab-textarea" placeholder="Nhập nội dung phần 6..."></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Comparison Table -->
+  <div class="comparison-table">
+    <table>
+      <thead>
+        <tr>
+          <th>Tiêu chí</th>
+          <th>GP1: Mở rộng</th>
+          <th>GP2: Modal</th>
+          <th>GP3: 1 Active</th>
+          <th>GP4: Tabs</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Không gian edit</td>
+          <td>Trung bình</td>
+          <td><span class="check">✓</span> Lớn nhất</td>
+          <td>Khá lớn</td>
+          <td><span class="check">✓</span> Lớn</td>
+        </tr>
+        <tr>
+          <td>Số click để edit</td>
+          <td><span class="check">✓</span> 1 click</td>
+          <td>2 clicks</td>
+          <td><span class="check">✓</span> 1 click</td>
+          <td><span class="check">✓</span> 1 click</td>
+        </tr>
+        <tr>
+          <td>Xem tổng quan các phần</td>
+          <td><span class="check">✓</span> Tốt</td>
+          <td><span class="check">✓</span> Tốt</td>
+          <td>Trung bình</td>
+          <td><span class="check">✓</span> Rất tốt</td>
+        </tr>
+        <tr>
+          <td>Phù hợp 12-15 phần</td>
+          <td>Scroll nhiều</td>
+          <td><span class="check">✓</span> Tốt</td>
+          <td>Scroll nhiều</td>
+          <td><span class="check">✓</span> Rất tốt</td>
+        </tr>
+        <tr>
+          <td>Dễ implement</td>
+          <td><span class="check">✓</span> Đơn giản</td>
+          <td>Phức tạp hơn</td>
+          <td><span class="check">✓</span> Đơn giản</td>
+          <td>Trung bình</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Voting Section -->
+  <div class="voting-section">
+    <h2>🗳️ Bạn thích giải pháp nào?</h2>
+    <div class="vote-options">
+      <button class="vote-btn" onclick="vote(this, 1)">
+        <strong>Giải pháp 1:</strong> Mở rộng khi expand - Đơn giản, quen thuộc
+      </button>
+      <button class="vote-btn" onclick="vote(this, 2)">
+        <strong>Giải pháp 2:</strong> Full-screen Modal - Không gian lớn nhất
+      </button>
+      <button class="vote-btn" onclick="vote(this, 3)">
+        <strong>Giải pháp 3:</strong> Chỉ 1 phần active - Focus cao
+      </button>
+      <button class="vote-btn" onclick="vote(this, 4)">
+        <strong>Giải pháp 4:</strong> Tabs Navigation - Gọn gàng, dễ navigate (Khuyến nghị)
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal for Solution 2 -->
+  <div class="modal-overlay" id="editModal">
+    <div class="edit-modal">
+      <div class="edit-modal-header">
+        <h3>📝 Chỉnh sửa Phần <span id="modalPartNum">1</span></h3>
+        <button class="edit-modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="edit-modal-body">
+        <textarea id="modalTextarea" placeholder="Nhập nội dung...">Đây là nội dung mẫu trong modal full-screen.
+
+Bạn có rất nhiều không gian để chỉnh sửa nội dung ở đây.
+
+Modal này có thể hiển thị highlight cho các ký tự đặc biệt như:
+- Số 0, 1 (lỗi voice)
+- Ký tự ', ` (lỗi voice)
+- Dấu ?, - (cảnh báo)
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</textarea>
+      </div>
+      <div class="edit-modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">Hủy</button>
+        <button class="btn btn-primary" onclick="saveModal()">💾 Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Solution 3: Select section
+    function selectSection3(element) {
+      const container = element.closest('.solution-body');
+      container.querySelectorAll('.clipboard-section').forEach(s => {
+        s.classList.remove('expanded');
+      });
+      element.classList.add('expanded');
+    }
+
+    // Solution 4: Switch tabs
+    function switchTab4(index, btn) {
+      const container = btn.closest('.solution-body');
+
+      // Update buttons
+      container.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      // Update content
+      container.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      container.querySelector(`[data-tab="${index}"]`).classList.add('active');
+    }
+
+    // Solution 2: Modal
+    function openModal(partNum) {
+      document.getElementById('modalPartNum').textContent = partNum;
+      document.getElementById('editModal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('editModal').classList.remove('active');
+    }
+
+    function saveModal() {
+      alert('Đã lưu nội dung!');
+      closeModal();
+    }
+
+    // Voting
+    function vote(btn, solution) {
+      document.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      console.log('Selected solution:', solution);
+    }
+
+    // Close modal on overlay click
+    document.getElementById('editModal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeModal();
+      }
+    });
+  </script>
+</body>
+</html>
