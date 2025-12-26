@@ -347,55 +347,21 @@ function handleCommandClick(index) {
 }
 
 function sendCommandToGemini(text, autoEnter = true) {
-  // Find active Gemini tab only
-  chrome.tabs.query({ url: 'https://gemini.google.com/*', active: true }, (activeTabs) => {
-    let targetTab = activeTabs && activeTabs.length > 0 ? activeTabs[0] : null;
+  console.log('[Popup] Sending command via background:', text.substring(0, 50));
 
-    // If no active Gemini tab, find any Gemini tab
-    if (!targetTab) {
-      chrome.tabs.query({ url: 'https://gemini.google.com/*' }, (allGeminiTabs) => {
-        if (allGeminiTabs && allGeminiTabs.length > 0) {
-          targetTab = allGeminiTabs[0];
-          sendToTab(targetTab, text, autoEnter);
-        } else {
-          showToast('Vui lòng mở trang gemini.google.com trước!', 'warning');
-        }
-      });
-    } else {
-      sendToTab(targetTab, text, autoEnter);
-    }
-  });
-}
-
-function sendToTab(tab, text, autoEnter) {
-  console.log('[Popup] Sending to tab:', tab.id, text.substring(0, 50));
-
-  chrome.tabs.sendMessage(tab.id, {
-    type: 'INJECT_COMMAND',
+  // Route through background script - it has full access to all windows/tabs
+  chrome.runtime.sendMessage({
+    type: 'INJECT_TO_GEMINI',
     text: text,
     autoEnter: autoEnter
   }, (response) => {
     if (chrome.runtime.lastError) {
-      console.error('[Popup] Error:', chrome.runtime.lastError.message);
-      // Try injecting content script manually
-      chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        files: ['js/content.js']
-      }).then(() => {
-        // Retry after injecting
-        setTimeout(() => {
-          chrome.tabs.sendMessage(tab.id, {
-            type: 'INJECT_COMMAND',
-            text: text,
-            autoEnter: autoEnter
-          });
-          showToast('Đã gửi lệnh!', 'success');
-        }, 500);
-      }).catch(err => {
-        showToast('Lỗi: Hãy refresh trang Gemini!', 'error');
-      });
-    } else {
+      console.error('[Popup] Error sending to background:', chrome.runtime.lastError.message);
+      showToast('Lỗi: Không thể gửi lệnh!', 'error');
+    } else if (response && response.success) {
       showToast('Đã gửi lệnh!', 'success');
+    } else if (response && response.error) {
+      showToast(response.error, 'warning');
     }
   });
 }

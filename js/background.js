@@ -106,6 +106,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: true });
       break;
 
+    case 'INJECT_TO_GEMINI':
+      // Handle injection request from popup window
+      handleInjectToGemini(message.text, message.autoEnter)
+        .then(result => sendResponse(result))
+        .catch(err => sendResponse({ success: false, error: err.message }));
+      return true; // Keep channel open for async response
+
     default:
       sendResponse({ success: true });
   }
@@ -128,6 +135,71 @@ function handleTextCaptured(text) {
   }).catch(() => {
     console.log('[Background] Popup not open, text stored');
   });
+}
+
+// ========================================
+// Inject Command to Gemini Tab
+// ========================================
+async function handleInjectToGemini(text, autoEnter) {
+  console.log('[Background] Handling inject to Gemini:', text.substring(0, 50));
+
+  try {
+    // Find all Gemini tabs
+    const geminiTabs = await chrome.tabs.query({ url: 'https://gemini.google.com/*' });
+
+    if (!geminiTabs || geminiTabs.length === 0) {
+      console.log('[Background] No Gemini tab found');
+      return { success: false, error: 'Vui lòng mở trang gemini.google.com trước!' };
+    }
+
+    // Prefer active tab, or use the first one
+    let targetTab = geminiTabs.find(tab => tab.active) || geminiTabs[0];
+    console.log('[Background] Target tab:', targetTab.id, targetTab.url);
+
+    // Try to send message to content script
+    try {
+      const response = await chrome.tabs.sendMessage(targetTab.id, {
+        type: 'INJECT_COMMAND',
+        text: text,
+        autoEnter: autoEnter
+      });
+
+      console.log('[Background] Content script response:', response);
+      return { success: true };
+
+    } catch (e) {
+      console.log('[Background] Content script not responding, injecting manually');
+
+      // Content script might not be loaded, inject it
+      await chrome.scripting.executeScript({
+        target: { tabId: targetTab.id },
+        files: ['js/content.js']
+      });
+
+      // Wait a bit for script to initialize
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Retry sending message
+      try {
+        const response = await chrome.tabs.sendMessage(targetTab.id, {
+          type: 'INJECT_COMMAND',
+          text: text,
+          autoEnter: autoEnter
+        });
+
+        console.log('[Background] Retry response:', response);
+        return { success: true };
+
+      } catch (retryError) {
+        console.error('[Background] Retry failed:', retryError);
+        return { success: false, error: 'Lỗi: Hãy refresh trang Gemini!' };
+      }
+    }
+
+  } catch (error) {
+    console.error('[Background] handleInjectToGemini error:', error);
+    return { success: false, error: 'Lỗi: ' + error.message };
+  }
 }
 
 // ========================================
