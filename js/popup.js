@@ -45,7 +45,7 @@ const state = {
   parts: [],
   capturedContents: {}, // Store captured content for each part
   settings: {
-    hotkey: { ctrl: true, shift: true, alt: false, key: 'C' },
+    hotkey: { ctrl: true, shift: false, alt: false, key: ' ' },
     koreanCountMethod: 'words',
     showToast: true
   }
@@ -1062,9 +1062,9 @@ function openCommandEditor(step) {
   // Prepare command with placeholders replaced
   const command = prepareCommand(step);
 
-  // Update editor UI
+  // Update editor UI - chỉ hiển thị label, không có số bước
   if (elements.editorStepLabel) {
-    elements.editorStepLabel.textContent = `Bước ${step}: ${getStepLabel(step)}`;
+    elements.editorStepLabel.textContent = getStepLabel(step);
   }
   if (elements.commandEditor) {
     elements.commandEditor.value = command || '';
@@ -1577,7 +1577,7 @@ function stopRecording() {
 }
 
 function resetHotkey() {
-  state.settings.hotkey = { ctrl: true, shift: true, alt: false, key: 'C' };
+  state.settings.hotkey = { ctrl: true, shift: false, alt: false, key: ' ' };
   saveState();
   updateHotkeyDisplay();
   notifyHotkeyChange();
@@ -1590,7 +1590,8 @@ function updateHotkeyDisplay() {
   if (ctrl) keys.push('Ctrl');
   if (shift) keys.push('Shift');
   if (alt) keys.push('Alt');
-  keys.push(key);
+  // Display "Space" for space key
+  keys.push(key === ' ' ? 'Space' : key);
 
   // Update inline hotkey display (supports both old and new class names)
   if (elements.hotkeyDisplay) {
@@ -2138,7 +2139,7 @@ function renderContentClipboard() {
 
   elements.editorPartLabel.textContent = `Phần ${currentContentPart}`;
   elements.editorWords.textContent = wordCount;
-  elements.editorTarget.textContent = targetWords;
+  elements.editorTarget.value = targetWords;
   elements.contentEditorTextarea.value = content;
 
   // Update diff display
@@ -2164,6 +2165,12 @@ let contentSaveTimer = null;
 
 function setupContentEditorListeners() {
   if (!elements.contentEditorTextarea) return;
+
+  // Listen for target word count changes
+  if (elements.editorTarget) {
+    elements.editorTarget.addEventListener('input', handleEditorTargetChange);
+    elements.editorTarget.addEventListener('change', handleEditorTargetChange);
+  }
 
   elements.contentEditorTextarea.addEventListener('input', () => {
     // Update live word count
@@ -2207,6 +2214,48 @@ function setupContentEditorListeners() {
 }
 
 // renderSettings removed - simplified UI
+
+// Handle editor target word count change
+function handleEditorTargetChange() {
+  const newTarget = parseInt(elements.editorTarget.value) || 0;
+  if (newTarget < 50) return; // Minimum 50 words
+
+  // Update wordCounts for current part
+  wordCounts[`P${currentContentPart}`] = newTarget;
+
+  // Recalculate total target
+  let total = 0;
+  for (let i = 1; i <= state.numParts; i++) {
+    total += wordCounts[`P${i}`] || 0;
+  }
+  state.totalTarget = total;
+
+  // Update total target input
+  if (elements.totalTargetInput) {
+    elements.totalTargetInput.value = total;
+  }
+
+  // Update diff display
+  const content = state.capturedContents[currentContentPart] || '';
+  const wordCount = countWords(content);
+  const diff = wordCount - newTarget;
+
+  if (content.length > 0) {
+    elements.editorDiff.textContent = diff >= 0 ? `+${diff}` : `${diff}`;
+    elements.editorDiff.className = `editor-diff ${diff >= 0 ? 'positive' : 'negative'}`;
+    elements.editorDiff.style.display = '';
+  }
+
+  // Update part button label to show new target
+  renderPartFlowButtons();
+
+  // Update progress
+  renderProgress();
+
+  // Save
+  chrome.storage.local.set({ wordCounts: wordCounts, totalTarget: state.totalTarget });
+  saveState();
+}
 
 // ========================================
 // Storage
@@ -2367,8 +2416,53 @@ function renderFullscreenEditor() {
     });
   });
 
+  // Add target input listener
+  if (elements.fsTarget) {
+    elements.fsTarget.addEventListener('input', handleFsTargetChange);
+    elements.fsTarget.addEventListener('change', handleFsTargetChange);
+  }
+
   // Render editor content
   renderFullscreenEditorContent();
+}
+
+// Handle fullscreen target word count change
+function handleFsTargetChange() {
+  const newTarget = parseInt(elements.fsTarget.value) || 0;
+  if (newTarget < 50) return;
+
+  // Update wordCounts for current fullscreen part
+  wordCounts[`P${fsCurrentPart}`] = newTarget;
+
+  // Recalculate total
+  let total = 0;
+  for (let i = 1; i <= state.numParts; i++) {
+    total += wordCounts[`P${i}`] || 0;
+  }
+  state.totalTarget = total;
+
+  // Update diff
+  const content = state.capturedContents[fsCurrentPart] || '';
+  const wordCount = countWords(content);
+  const diff = wordCount - newTarget;
+
+  if (content.length > 0) {
+    elements.fsDiff.textContent = diff >= 0 ? `+${diff}` : `${diff}`;
+    elements.fsDiff.className = `fs-diff ${diff >= 0 ? 'positive' : 'negative'}`;
+  }
+
+  // Update fullscreen header
+  elements.fsEditorTotalTarget.textContent = total.toLocaleString();
+  const totalWritten = calculateTotalWritten();
+  const percent = total > 0 ? Math.min((totalWritten / total) * 100, 100) : 0;
+  elements.fsEditorPercent.textContent = `${percent.toFixed(1)}%`;
+
+  // Update tabs
+  updateFullscreenTabs();
+
+  // Save
+  chrome.storage.local.set({ wordCounts: wordCounts, totalTarget: state.totalTarget });
+  saveState();
 }
 
 function renderFullscreenEditorContent() {
@@ -2379,7 +2473,7 @@ function renderFullscreenEditorContent() {
 
   elements.fsPartLabel.textContent = `Phần ${fsCurrentPart}`;
   elements.fsWords.textContent = wordCount;
-  elements.fsTarget.textContent = targetWords;
+  elements.fsTarget.value = targetWords;
   elements.fsTextarea.value = content;
 
   // Update diff display
@@ -2518,10 +2612,11 @@ function updateOnboardingHotkeyDisplay() {
   if (hotkey.ctrl) parts.push("Ctrl");
   if (hotkey.shift) parts.push("Shift");
   if (hotkey.alt) parts.push("Alt");
-  parts.push(hotkey.key);
+  // Display "Space" for space key
+  parts.push(hotkey.key === ' ' ? 'Space' : hotkey.key);
 
   if (elements.onboardingHotkeyDisplay) {
-    elements.onboardingHotkeyDisplay.innerHTML = parts.map(k => 
+    elements.onboardingHotkeyDisplay.innerHTML = parts.map(k =>
       `<span class="hotkey-key-large">${k}</span>`
     ).join(`<span class="hotkey-plus-large">+</span>`);
   }
