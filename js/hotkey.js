@@ -3,10 +3,16 @@
  * Runs on ALL pages to capture text with custom hotkey
  */
 
+// Verify script is loaded
+if (typeof window !== 'undefined') {
+  window.__YTB_LOADED__ = true;
+}
+
 (function() {
   'use strict';
 
-  console.log('[YTB] Hotkey script init...');
+  // Multiple ways to log - ensure visibility
+  console.log('%c[YTB] Hotkey script init...', 'background: #4285f4; color: white; padding: 2px 6px; border-radius: 3px;');
 
   // Default hotkey - Ctrl+Shift+G
   let hotkey = { ctrl: true, shift: true, alt: false, key: 'g' };
