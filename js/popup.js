@@ -1083,15 +1083,33 @@ function updateFlowStatus() {
 // ========================================
 // Track last processed capture to avoid duplicates
 let lastProcessedCaptureTime = 0;
+let lastProcessedText = '';
+let messageListenerSetup = false;
 
 function setupMessageListener() {
+  // Prevent duplicate listener registration
+  if (messageListenerSetup) {
+    console.log('[Popup] Message listener already setup, skipping');
+    return;
+  }
+  messageListenerSetup = true;
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'TEXT_CAPTURED') {
+      // Check if this exact text was just processed (within 1 second)
+      const now = Date.now();
+      if (message.text === lastProcessedText && (now - lastProcessedCaptureTime) < 1000) {
+        console.log('[Popup] Duplicate capture ignored');
+        sendResponse({ success: true, duplicate: true });
+        return true;
+      }
+
       // Clear storage immediately to prevent double processing
       chrome.storage.local.remove(['lastCapturedText', 'lastCapturedTime', 'lastCapturedWordCount']);
 
       // Mark as processed
-      lastProcessedCaptureTime = Date.now();
+      lastProcessedCaptureTime = now;
+      lastProcessedText = message.text;
 
       handleTextCaptured(message.text);
       sendResponse({ success: true });
@@ -1106,10 +1124,13 @@ function setupMessageListener() {
       if (data.lastCapturedText && data.lastCapturedTime) {
         const timeDiff = Date.now() - data.lastCapturedTime;
         const processedRecently = (Date.now() - lastProcessedCaptureTime) < 2000;
+        const sameText = data.lastCapturedText === lastProcessedText;
 
         // If captured within last 60 seconds AND not already processed via message
-        if (timeDiff < 60000 && !processedRecently) {
+        if (timeDiff < 60000 && !processedRecently && !sameText) {
           console.log('[Popup] Found stored capture from', timeDiff, 'ms ago:', data.lastCapturedWordCount, 'words');
+          lastProcessedText = data.lastCapturedText;
+          lastProcessedCaptureTime = Date.now();
           handleTextCaptured(data.lastCapturedText);
         }
         // Always clear stored capture data after checking
