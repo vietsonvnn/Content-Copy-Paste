@@ -3355,3 +3355,19 @@ body.popup-window .content-editor-textarea {
   background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%) !important;
 }
 
+
+
+/* Logo Images */
+.onboarding-logo-img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  margin-bottom: var(--space-sm);
+}
+
+.header-logo-img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
