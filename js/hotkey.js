@@ -1,187 +1,205 @@
 /**
  * YeuTuBe - Global Hotkey Handler
- * Runs on ALL pages to capture text with custom hotkey
+ * Chạy trên TẤT CẢ các trang để capture text
  */
-
-// Verify script is loaded
-if (typeof window !== 'undefined') {
-  window.__YTB_LOADED__ = true;
-}
 
 (function() {
   'use strict';
 
-  // Multiple ways to log - ensure visibility
-  console.log('%c[YTB] Hotkey script init...', 'background: #4285f4; color: white; padding: 2px 6px; border-radius: 3px;');
+  // Log ngay khi script load
+  console.log('[YTB] ===== HOTKEY SCRIPT LOADED =====');
+  console.log('[YTB] URL:', window.location.href);
 
-  // Default hotkey - Ctrl+Shift+G
+  // Hotkey mặc định
   let hotkey = { ctrl: true, shift: true, alt: false, key: 'g' };
 
-  // Load saved hotkey from storage
-  chrome.storage.local.get(['settings'], (data) => {
-    if (data.settings && data.settings.hotkey) {
-      hotkey = data.settings.hotkey;
-      // Ensure key is lowercase string
-      if (hotkey.key && typeof hotkey.key === 'string') {
-        hotkey.key = hotkey.key.toLowerCase();
+  // Load từ storage
+  try {
+    chrome.storage.local.get(['settings'], function(data) {
+      if (chrome.runtime.lastError) {
+        console.log('[YTB] Storage error:', chrome.runtime.lastError);
+        return;
       }
-    }
-    console.log('[YTB] Loaded hotkey:', formatHotkey(hotkey));
-  });
-
-  // Listen for hotkey changes from popup
-  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (msg.type === 'HOTKEY_CHANGED' && msg.hotkey) {
-      hotkey = msg.hotkey;
-      // Ensure key is lowercase
-      if (hotkey.key && typeof hotkey.key === 'string') {
-        hotkey.key = hotkey.key.toLowerCase();
-      }
-      console.log('[YTB] Hotkey updated to:', formatHotkey(hotkey));
-      sendResponse({ success: true });
-    }
-    return true;
-  });
-
-  // Also listen for storage changes (backup method)
-  chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.settings && changes.settings.newValue) {
-      const newSettings = changes.settings.newValue;
-      if (newSettings.hotkey) {
-        hotkey = newSettings.hotkey;
-        if (hotkey.key && typeof hotkey.key === 'string') {
+      if (data && data.settings && data.settings.hotkey) {
+        hotkey = data.settings.hotkey;
+        // Đảm bảo key là lowercase
+        if (typeof hotkey.key === 'string') {
           hotkey.key = hotkey.key.toLowerCase();
         }
-        console.log('[YTB] Hotkey updated via storage:', formatHotkey(hotkey));
       }
-    }
-  });
-
-  function formatHotkey(hk) {
-    if (!hk) return 'undefined';
-    let s = '';
-    if (hk.ctrl) s += 'Ctrl+';
-    if (hk.shift) s += 'Shift+';
-    if (hk.alt) s += 'Alt+';
-    s += hk.key === ' ' ? 'Space' : (hk.key || '?').toUpperCase();
-    return s;
+      console.log('[YTB] Hotkey loaded:', JSON.stringify(hotkey));
+    });
+  } catch(e) {
+    console.log('[YTB] Error loading storage:', e);
   }
 
+  // Lắng nghe thay đổi từ popup
+  try {
+    chrome.runtime.onMessage.addListener(function(msg, sender, sendResponse) {
+      console.log('[YTB] Message received:', msg.type);
+      if (msg.type === 'HOTKEY_CHANGED' && msg.hotkey) {
+        hotkey = msg.hotkey;
+        if (typeof hotkey.key === 'string') {
+          hotkey.key = hotkey.key.toLowerCase();
+        }
+        console.log('[YTB] Hotkey changed to:', JSON.stringify(hotkey));
+        sendResponse({ success: true });
+      }
+      return true;
+    });
+  } catch(e) {
+    console.log('[YTB] Error setting up message listener:', e);
+  }
+
+  // Lắng nghe storage change (backup)
+  try {
+    chrome.storage.onChanged.addListener(function(changes, area) {
+      if (area === 'local' && changes.settings) {
+        var newSettings = changes.settings.newValue;
+        if (newSettings && newSettings.hotkey) {
+          hotkey = newSettings.hotkey;
+          if (typeof hotkey.key === 'string') {
+            hotkey.key = hotkey.key.toLowerCase();
+          }
+          console.log('[YTB] Hotkey updated via storage change:', JSON.stringify(hotkey));
+        }
+      }
+    });
+  } catch(e) {
+    console.log('[YTB] Error setting up storage listener:', e);
+  }
+
+  // Toast notification
   function showToast(msg, type) {
     if (!document.body) {
-      setTimeout(() => showToast(msg, type), 100);
+      setTimeout(function() { showToast(msg, type); }, 100);
       return;
     }
 
-    const old = document.getElementById('ytb-toast');
-    if (old) old.remove();
+    var old = document.getElementById('ytb-toast');
+    if (old) old.parentNode.removeChild(old);
 
-    const div = document.createElement('div');
+    var div = document.createElement('div');
     div.id = 'ytb-toast';
     div.textContent = msg;
 
-    const bg = type === 'success' ? '#34a853' : type === 'warning' ? '#fbbc04' : '#4285f4';
-    const fg = type === 'warning' ? '#000' : '#fff';
+    var bg = type === 'success' ? '#34a853' : (type === 'warning' ? '#fbbc04' : '#4285f4');
+    var fg = type === 'warning' ? '#000' : '#fff';
 
-    div.style.cssText = `
-      position: fixed !important;
-      bottom: 30px !important;
-      right: 30px !important;
-      padding: 14px 24px !important;
-      background: ${bg} !important;
-      color: ${fg} !important;
-      border-radius: 8px !important;
-      font: 600 14px/1.4 -apple-system, sans-serif !important;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
-      z-index: 2147483647 !important;
-    `;
+    div.style.cssText = 'position:fixed!important;bottom:30px!important;right:30px!important;' +
+      'padding:14px 24px!important;background:' + bg + '!important;color:' + fg + '!important;' +
+      'border-radius:8px!important;font:600 14px -apple-system,sans-serif!important;' +
+      'box-shadow:0 4px 20px rgba(0,0,0,0.3)!important;z-index:2147483647!important;';
 
     document.body.appendChild(div);
 
-    setTimeout(() => {
-      div.style.opacity = '0';
-      div.style.transition = 'opacity 0.3s';
-      setTimeout(() => div.remove(), 300);
-    }, 2500);
+    setTimeout(function() {
+      if (div.parentNode) div.parentNode.removeChild(div);
+    }, 3000);
   }
 
-  function capture() {
-    const sel = window.getSelection();
-    const text = sel ? sel.toString().trim() : '';
+  // Capture text
+  function captureText() {
+    var sel = window.getSelection();
+    var text = sel ? sel.toString().trim() : '';
+
+    console.log('[YTB] Capturing... Selected text length:', text.length);
 
     if (!text) {
       showToast('Chưa chọn text!', 'warning');
       return;
     }
 
-    const words = text.split(/\s+/).filter(w => w).length;
+    var words = text.split(/\s+/).filter(function(w) { return w.length > 0; }).length;
 
     chrome.storage.local.set({
       lastCapturedText: text,
       lastCapturedTime: Date.now(),
       lastCapturedWordCount: words
-    }, () => {
-      showToast(`Đã capture: ${words} từ`, 'success');
+    }, function() {
+      if (chrome.runtime.lastError) {
+        console.log('[YTB] Save error:', chrome.runtime.lastError);
+        return;
+      }
+      showToast('Đã capture: ' + words + ' từ', 'success');
       console.log('[YTB] Captured', words, 'words');
 
-      chrome.runtime.sendMessage({
-        type: 'TEXT_CAPTURED',
-        text: text,
-        wordCount: words
-      }).catch(() => {});
+      // Thông báo popup nếu đang mở
+      try {
+        chrome.runtime.sendMessage({
+          type: 'TEXT_CAPTURED',
+          text: text,
+          wordCount: words
+        });
+      } catch(e) {}
     });
   }
 
-  // Keydown listener
-  window.addEventListener('keydown', function(e) {
-    // Quick exit if no modifier
-    if (!e.ctrlKey && !e.metaKey && !e.altKey) return;
+  // Keydown handler
+  function onKeyDown(e) {
+    // Lấy config hiện tại
+    var wantCtrl = hotkey.ctrl === true;
+    var wantShift = hotkey.shift === true;
+    var wantAlt = hotkey.alt === true;
+    var wantKey = (hotkey.key || 'g').toLowerCase();
 
-    // Get expected values with safety checks
-    const expectCtrl = hotkey.ctrl === true;
-    const expectShift = hotkey.shift === true;
-    const expectAlt = hotkey.alt === true;
-    const expectKey = (hotkey.key || 'g').toLowerCase();
+    // Lấy phím đang bấm
+    var hasCtrl = e.ctrlKey || e.metaKey;
+    var hasShift = e.shiftKey;
+    var hasAlt = e.altKey;
 
-    // Check modifiers
-    const hasCtrl = e.ctrlKey || e.metaKey;
-    const hasShift = e.shiftKey;
-    const hasAlt = e.altKey;
-
-    const ctrlOk = expectCtrl ? hasCtrl : !hasCtrl;
-    const shiftOk = expectShift ? hasShift : !hasShift;
-    const altOk = expectAlt ? hasAlt : !hasAlt;
-
-    // Check key
-    let keyOk = false;
-    const pressedKey = e.key.toLowerCase();
-
-    if (expectKey === ' ' || expectKey === 'space') {
-      keyOk = e.code === 'Space' || e.key === ' ';
+    // So sánh key - dùng e.code để tránh vấn đề với Shift
+    var pressedKey = '';
+    if (e.code) {
+      // e.code cho kết quả ổn định hơn (KeyG, KeyA, Space, etc.)
+      if (e.code.startsWith('Key')) {
+        pressedKey = e.code.substring(3).toLowerCase(); // KeyG -> g
+      } else if (e.code === 'Space') {
+        pressedKey = ' ';
+      } else {
+        pressedKey = e.key.toLowerCase();
+      }
     } else {
-      keyOk = pressedKey === expectKey;
+      pressedKey = e.key.toLowerCase();
     }
 
-    const isMatch = ctrlOk && shiftOk && altOk && keyOk;
+    // Check từng modifier
+    var ctrlOk = wantCtrl === hasCtrl;
+    var shiftOk = wantShift === hasShift;
+    var altOk = wantAlt === hasAlt;
+    var keyOk = (wantKey === pressedKey) || (wantKey === ' ' && pressedKey === ' ');
 
-    // Debug log
-    if (hasCtrl || hasAlt) {
-      console.log('[YTB] Pressed:',
-        (hasCtrl ? 'Ctrl+' : '') + (hasShift ? 'Shift+' : '') + (hasAlt ? 'Alt+' : '') + e.key,
-        '| Expected:', formatHotkey(hotkey),
-        '| Match:', isMatch
-      );
+    var isMatch = ctrlOk && shiftOk && altOk && keyOk;
+
+    // Debug - chỉ log khi có modifier
+    if (hasCtrl || hasAlt || hasShift) {
+      console.log('[YTB] Key event:', {
+        code: e.code,
+        key: e.key,
+        pressed: pressedKey,
+        ctrl: hasCtrl,
+        shift: hasShift,
+        alt: hasAlt,
+        want: wantKey,
+        match: isMatch
+      });
     }
 
     if (isMatch) {
+      console.log('[YTB] ★★★ MATCHED! ★★★');
       e.preventDefault();
       e.stopPropagation();
-      e.stopImmediatePropagation();
-      console.log('[YTB] ★ HOTKEY MATCHED! ★');
-      capture();
+      captureText();
       return false;
     }
-  }, true);
+  }
 
-  console.log('[YTB] Ready! Default:', formatHotkey(hotkey));
+  // Đăng ký listener với capture phase
+  document.addEventListener('keydown', onKeyDown, true);
+
+  // Backup: đăng ký trên window
+  window.addEventListener('keydown', onKeyDown, true);
+
+  console.log('[YTB] ===== READY =====');
+  console.log('[YTB] Default hotkey:', JSON.stringify(hotkey));
 })();
