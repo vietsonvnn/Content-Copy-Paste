@@ -44,8 +44,8 @@
   "commands": {
     "capture-text": {
       "suggested_key": {
-        "default": "Ctrl+Shift+C",
-        "mac": "Command+Shift+C"
+        "default": "Ctrl+Shift+G",
+        "mac": "Command+Shift+G"
       },
       "description": "Capture selected text to word counter"
     }

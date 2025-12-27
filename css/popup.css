@@ -1183,6 +1183,22 @@ textarea {
   background: linear-gradient(90deg, var(--warning) 0%, #f57c00 100%);
 }
 
+.progress-fill.overflow {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+/* Progress overflow indicator */
+.progress-overflow {
+  color: #059669;
+  font-weight: 600;
+  font-size: 11px;
+  margin-left: 4px;
+}
+
+.progress-overflow.has-overflow {
+  display: inline;
+}
+
 /* ========================================
    Settings
    ======================================== */

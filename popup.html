@@ -47,7 +47,9 @@
           <div class="hotkey-display-large" id="onboardingHotkeyDisplay">
             <span class="hotkey-key-large">Ctrl</span>
             <span class="hotkey-plus-large">+</span>
-            <span class="hotkey-key-large">Space</span>
+            <span class="hotkey-key-large">Shift</span>
+            <span class="hotkey-plus-large">+</span>
+            <span class="hotkey-key-large">G</span>
           </div>
           <div class="hotkey-recording-large" id="onboardingHotkeyRecording" style="display: none;">
             <span class="recording-text-large">Nhấn phím mới...</span>
@@ -68,7 +70,7 @@
         <div class="header-actions">
           <!-- Hotkey display/recorder -->
           <div class="header-hotkey" id="headerHotkeyRecorder" title="Click để đổi phím tắt capture">
-            <span class="header-hotkey-display" id="headerHotkeyDisplay">Ctrl+Space</span>
+            <span class="header-hotkey-display" id="headerHotkeyDisplay">Ctrl+Shift+G</span>
           </div>
           <button class="btn-icon" id="popoutBtn" title="Mở cửa sổ riêng">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -91,7 +93,7 @@
       <!-- Progress Overview -->
       <div class="progress-overview">
         <div class="progress-info">
-          <span class="progress-text"><strong id="totalWritten">0</strong> / <span id="totalTarget">5,000</span> từ</span>
+          <span class="progress-text"><strong id="totalWritten">0</strong> / <span id="totalTarget">5,000</span> từ <span class="progress-overflow" id="progressOverflow"></span></span>
           <span class="progress-percent" id="totalPercent">0%</span>
         </div>
         <div class="progress-bar">

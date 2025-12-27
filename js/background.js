@@ -6,7 +6,7 @@
 // ========================================
 // State
 // ========================================
-let currentHotkey = { ctrl: true, shift: false, alt: false, key: ' ' };
+let currentHotkey = { ctrl: true, shift: true, alt: false, key: 'g' };
 
 // ========================================
 // Initialize
@@ -17,7 +17,7 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     chrome.storage.local.set({
       settings: {
-        hotkey: { ctrl: true, shift: false, alt: false, key: ' ' },
+        hotkey: { ctrl: true, shift: true, alt: false, key: 'g' },
         koreanCountMethod: 'words',
         showToast: true
       }
@@ -293,6 +293,62 @@ async function forwardToGeminiTabs(message) {
     console.error('[Background] Error forwarding message:', e);
   }
 }
+
+// ========================================
+// Command Listener (for keyboard shortcuts from manifest)
+// ========================================
+chrome.commands.onCommand.addListener(async (command) => {
+  console.log('[Background] Command received:', command);
+
+  if (command === 'capture-text') {
+    // Get active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+    if (!tab) {
+      console.log('[Background] No active tab');
+      return;
+    }
+
+    console.log('[Background] Sending capture command to tab:', tab.id, tab.url);
+
+    // Send message to content script to capture text
+    try {
+      await chrome.tabs.sendMessage(tab.id, { type: 'CAPTURE_TEXT' });
+      console.log('[Background] Capture command sent');
+    } catch (err) {
+      console.log('[Background] Could not send to tab, injecting script...');
+
+      // Try injecting content script if not already there
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const selection = window.getSelection();
+            const text = selection.toString().trim();
+
+            if (!text) {
+              console.log('[CW-Inject] No text selected');
+              return { success: false, error: 'Chưa chọn text!' };
+            }
+
+            const wordCount = text.split(/\s+/).filter(w => w).length;
+
+            chrome.storage.local.set({
+              lastCapturedText: text,
+              lastCapturedTime: Date.now(),
+              lastCapturedWordCount: wordCount
+            });
+
+            console.log('[CW-Inject] Captured:', wordCount, 'words');
+            return { success: true, wordCount };
+          }
+        });
+      } catch (injectErr) {
+        console.error('[Background] Inject error:', injectErr);
+      }
+    }
+  }
+});
 
 // ========================================
 // Keep Service Worker Alive

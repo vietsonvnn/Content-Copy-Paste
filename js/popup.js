@@ -45,7 +45,7 @@ const state = {
   parts: [],
   capturedContents: {}, // Store captured content for each part
   settings: {
-    hotkey: { ctrl: true, shift: false, alt: false, key: ' ' },
+    hotkey: { ctrl: true, shift: true, alt: false, key: 'g' },
     koreanCountMethod: 'words',
     showToast: true
   }
@@ -184,6 +184,7 @@ const elements = {
   totalTarget: document.getElementById('totalTarget'),
   totalPercent: document.getElementById('totalPercent'),
   totalProgressBar: document.getElementById('totalProgressBar'),
+  progressOverflow: document.getElementById('progressOverflow'),
   totalTargetInput: document.getElementById('totalTargetInput'),
   numPartsInput: document.getElementById('numPartsInput'),
   titleInput: document.getElementById('titleInput'),
@@ -1156,16 +1157,9 @@ function updateFlowButtonStates() {
       btn.classList.add('active');
     }
 
-    // Add/update click count badge
-    let badge = btn.querySelector('.click-count');
-    if (clickCount > 1) {
-      if (!badge) {
-        badge = document.createElement('span');
-        badge.className = 'click-count';
-        btn.appendChild(badge);
-      }
-      badge.textContent = clickCount;
-    } else if (badge) {
+    // Remove old click count badge if exists
+    const badge = btn.querySelector('.click-count');
+    if (badge) {
       badge.remove();
     }
   });
@@ -1596,8 +1590,8 @@ function updateHotkeyDisplay() {
   if (ctrl) keys.push('Ctrl');
   if (shift) keys.push('Shift');
   if (alt) keys.push('Alt');
-  // Display "Space" for space key
-  keys.push(key === ' ' ? 'Space' : key);
+  // Display "Space" for space key, uppercase for letters
+  keys.push(key === ' ' ? 'Space' : key.toUpperCase());
 
   // Update inline hotkey display (supports both old and new class names)
   if (elements.hotkeyDisplay) {
@@ -1866,12 +1860,25 @@ function updateStageProgress() {
 function renderProgress() {
   const totalWritten = calculateTotalWritten();
   const totalTarget = state.totalTarget || 0;
-  const percent = totalTarget > 0 ? Math.min((totalWritten / totalTarget) * 100, 100) : 0;
+  const actualPercent = totalTarget > 0 ? (totalWritten / totalTarget) * 100 : 0;
+  const barPercent = Math.min(actualPercent, 100);
+  const overflow = totalWritten - totalTarget;
 
   elements.totalWritten.textContent = totalWritten.toLocaleString();
   elements.totalTarget.textContent = totalTarget.toLocaleString();
-  elements.totalPercent.textContent = `${percent.toFixed(1)}%`;
-  elements.totalProgressBar.style.width = `${percent}%`;
+  elements.totalPercent.textContent = `${actualPercent.toFixed(1)}%`;
+  elements.totalProgressBar.style.width = `${barPercent}%`;
+
+  // Show overflow info when exceeding target
+  if (overflow > 0) {
+    elements.progressOverflow.textContent = `(vượt ${overflow.toLocaleString()} từ)`;
+    elements.progressOverflow.classList.add('has-overflow');
+    elements.totalProgressBar.classList.add('overflow');
+  } else {
+    elements.progressOverflow.textContent = '';
+    elements.progressOverflow.classList.remove('has-overflow');
+    elements.totalProgressBar.classList.remove('overflow');
+  }
 }
 
 function renderCommandButtons() {
@@ -2630,8 +2637,8 @@ function updateOnboardingHotkeyDisplay() {
   if (hotkey.ctrl) parts.push("Ctrl");
   if (hotkey.shift) parts.push("Shift");
   if (hotkey.alt) parts.push("Alt");
-  // Display "Space" for space key
-  parts.push(hotkey.key === ' ' ? 'Space' : hotkey.key);
+  // Display "Space" for space key, uppercase for letters
+  parts.push(hotkey.key === ' ' ? 'Space' : hotkey.key.toUpperCase());
 
   if (elements.onboardingHotkeyDisplay) {
     elements.onboardingHotkeyDisplay.innerHTML = parts.map(k =>
@@ -2867,7 +2874,7 @@ function updateHeaderHotkeyDisplay() {
   if (hotkey.ctrl) parts.push('Ctrl');
   if (hotkey.shift) parts.push('Shift');
   if (hotkey.alt) parts.push('Alt');
-  parts.push(hotkey.key === ' ' ? 'Space' : hotkey.key);
+  parts.push(hotkey.key === ' ' ? 'Space' : hotkey.key.toUpperCase());
 
   elements.headerHotkeyDisplay.textContent = parts.join('+');
 }

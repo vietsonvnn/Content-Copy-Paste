@@ -9,7 +9,7 @@ console.log('[CW] ====== Content script loading ======');
 // State
 // ========================================
 let settings = {
-  hotkey: { ctrl: true, shift: false, alt: false, key: ' ' },
+  hotkey: { ctrl: true, shift: true, alt: false, key: 'g' },
   showToast: true
 };
 
@@ -41,6 +41,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === 'HOTKEY_CHANGED') {
     settings.hotkey = message.hotkey;
+    sendResponse({ success: true });
+    return true;
+  }
+
+  if (message.type === 'CAPTURE_TEXT') {
+    console.log('[CW] Capture command received from background');
+    captureSelectedText();
     sendResponse({ success: true });
     return true;
   }
