@@ -60,8 +60,18 @@ document.addEventListener('keydown', (e) => {
   const altMatch = alt ? e.altKey : !e.altKey;
   const keyMatch = e.key.toUpperCase() === key.toUpperCase();
 
+  // Debug log for hotkey matching
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+    console.log('[CW] Hotkey detected:', {
+      pressed: `${e.ctrlKey || e.metaKey ? 'Ctrl+' : ''}${e.shiftKey ? 'Shift+' : ''}${e.altKey ? 'Alt+' : ''}${e.key}`,
+      expected: `${ctrl ? 'Ctrl+' : ''}${shift ? 'Shift+' : ''}${alt ? 'Alt+' : ''}${key}`,
+      match: ctrlMatch && shiftMatch && altMatch && keyMatch
+    });
+  }
+
   if (ctrlMatch && shiftMatch && altMatch && keyMatch) {
     e.preventDefault();
+    console.log('[CW] Hotkey matched! Capturing text...');
     captureSelectedText();
   }
 });
@@ -70,48 +80,50 @@ document.addEventListener('keydown', (e) => {
 // Find Input Element
 // ========================================
 function findInputElement() {
-  // Log all contenteditable elements
-  const allEditable = document.querySelectorAll('[contenteditable="true"]');
-  console.log('[CW] All contenteditable elements:', allEditable.length);
-  allEditable.forEach((el, i) => {
-    const rect = el.getBoundingClientRect();
-    console.log(`[CW] Element ${i}:`, {
-      tag: el.tagName,
-      class: el.className,
-      id: el.id,
-      visible: rect.width > 0 && rect.height > 0,
-      width: rect.width,
-      height: rect.height
-    });
-  });
-
-  // Try specific selectors first
+  // Try specific selectors for Gemini (updated for 2024/2025 UI)
   const selectors = [
-    'rich-textarea .ql-editor',
+    // Gemini rich-textarea selectors (most common)
+    'rich-textarea .ql-editor[contenteditable="true"]',
+    'rich-textarea[aria-label] .ql-editor',
+    '.input-area-container .ql-editor',
+    // Direct contenteditable with role
+    '[role="textbox"][contenteditable="true"]',
+    'div[contenteditable="true"][aria-label*="prompt" i]',
+    'div[contenteditable="true"][aria-label*="nhập" i]',
+    // Fallback selectors
     '.ql-editor[contenteditable="true"]',
-    'div.ql-editor',
-    '[contenteditable="true"].textarea',
-    '[contenteditable="true"][aria-label]',
-    '[contenteditable="true"][data-placeholder]',
-    '[contenteditable="true"]'
+    'div.ql-editor.textarea',
+    '[contenteditable="true"].ql-editor',
+    '[contenteditable="true"][data-placeholder]'
   ];
 
   for (const selector of selectors) {
     const elements = document.querySelectorAll(selector);
     for (const el of elements) {
       const rect = el.getBoundingClientRect();
-      if (rect.width > 100 && rect.height > 30) {
+      // Input area is usually at bottom half of screen and has minimum width
+      if (rect.width > 100 && rect.height > 20 && rect.top > window.innerHeight * 0.3) {
         console.log('[CW] Found input with selector:', selector);
         return el;
       }
     }
   }
 
-  // Fallback: find any visible contenteditable
+  // Fallback: find any visible contenteditable at bottom of page
+  const allEditable = document.querySelectorAll('[contenteditable="true"]');
   for (const el of allEditable) {
     const rect = el.getBoundingClientRect();
-    if (rect.width > 100 && rect.height > 30) {
-      console.log('[CW] Found input via fallback');
+    if (rect.width > 100 && rect.height > 20 && rect.top > window.innerHeight * 0.3) {
+      console.log('[CW] Found input via fallback (bottom area)');
+      return el;
+    }
+  }
+
+  // Last resort: any visible contenteditable
+  for (const el of allEditable) {
+    const rect = el.getBoundingClientRect();
+    if (rect.width > 100 && rect.height > 20) {
+      console.log('[CW] Found input via last resort fallback');
       return el;
     }
   }
@@ -133,33 +145,33 @@ function injectCommand(text, autoEnter = true) {
     return false;
   }
 
-  console.log('[CW] Input element found:', inputElement);
+  console.log('[CW] Input element found:', inputElement.className);
 
   try {
     // Step 1: Focus
     inputElement.focus();
     console.log('[CW] Focused');
 
-    // Step 2: Clear content
-    inputElement.innerHTML = '';
-    console.log('[CW] Cleared');
+    // Step 2: Select all content using Selection API
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(inputElement);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    console.log('[CW] Selected all via Selection API');
 
-    // Step 3: Insert text
-    if (inputElement.classList.contains('ql-editor')) {
-      // Quill editor format
-      const p = document.createElement('p');
-      p.textContent = text;
-      inputElement.appendChild(p);
-      console.log('[CW] Inserted as Quill paragraph');
-    } else {
-      inputElement.textContent = text;
-      console.log('[CW] Inserted as textContent');
-    }
+    // Step 3: Insert text using execCommand (bypass Trusted Types)
+    document.execCommand('insertText', false, text);
+    console.log('[CW] Inserted via execCommand');
 
-    // Step 4: Dispatch events
+    // Step 4: Dispatch events to notify Gemini's framework
     inputElement.dispatchEvent(new Event('input', { bubbles: true }));
     inputElement.dispatchEvent(new Event('change', { bubbles: true }));
-    inputElement.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: ' ' }));
+    inputElement.dispatchEvent(new InputEvent('input', {
+      bubbles: true,
+      inputType: 'insertText',
+      data: text
+    }));
     console.log('[CW] Events dispatched');
 
     showToast('Đã nhập lệnh!', 'success');
@@ -186,9 +198,9 @@ function injectCommand(text, autoEnter = true) {
 function sendMessage(inputElement) {
   console.log('[CW] Looking for send button...');
 
-  // Try aria-label first
+  // Try aria-label first (multiple languages)
   const sendByLabel = document.querySelector(
-    'button[aria-label*="Send" i], button[aria-label*="Gửi" i]'
+    'button[aria-label*="Send" i], button[aria-label*="Gửi" i], button[aria-label*="Submit" i]'
   );
 
   if (sendByLabel && !sendByLabel.disabled) {
@@ -198,7 +210,35 @@ function sendMessage(inputElement) {
     return;
   }
 
-  // Try finding button near input
+  // Try finding send button by common patterns
+  const sendButtonSelectors = [
+    'button[data-test-id="send-button"]',
+    'button.send-button',
+    'button[type="submit"]',
+    '.input-area button:not([disabled])',
+    'rich-textarea + button',
+    'button mat-icon[data-mat-icon-name="send"]',
+    'button:has(mat-icon[data-mat-icon-name="send"])'
+  ];
+
+  for (const selector of sendButtonSelectors) {
+    try {
+      const btn = document.querySelector(selector);
+      if (btn && !btn.disabled) {
+        const rect = btn.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          console.log('[CW] Found send button by selector:', selector);
+          btn.click();
+          showToast('Đã gửi!', 'success');
+          return;
+        }
+      }
+    } catch (e) {
+      // Some selectors may not be supported
+    }
+  }
+
+  // Try finding button near input (bottom area with SVG icon)
   const allButtons = Array.from(document.querySelectorAll('button'));
   console.log('[CW] Total buttons:', allButtons.length);
 
@@ -208,13 +248,14 @@ function sendMessage(inputElement) {
     const rect = btn.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) continue;
 
-    // Send button usually at bottom
-    if (rect.top < window.innerHeight * 0.6) continue;
+    // Send button usually at bottom half of screen
+    if (rect.top < window.innerHeight * 0.5) continue;
 
     const hasSvg = btn.querySelector('svg');
+    const hasMatIcon = btn.querySelector('mat-icon');
     const hasIcon = btn.querySelector('[class*="icon"]');
 
-    if (hasSvg || hasIcon) {
+    if (hasSvg || hasMatIcon || hasIcon) {
       console.log('[CW] Clicking potential send button:', btn);
       btn.click();
       showToast('Đã gửi!', 'success');
@@ -253,16 +294,24 @@ function captureSelectedText() {
 
   const wordCount = text.split(/\s+/).filter(w => w).length;
 
-  chrome.runtime.sendMessage({
-    type: 'TEXT_CAPTURED',
-    text: text
+  // Always save to storage first (most reliable)
+  chrome.storage.local.set({
+    lastCapturedText: text,
+    lastCapturedTime: Date.now(),
+    lastCapturedWordCount: wordCount
   }, () => {
-    if (chrome.runtime.lastError) {
-      chrome.storage.local.set({
-        lastCapturedText: text,
-        lastCapturedTime: Date.now()
-      });
-    }
+    console.log('[CW] Captured text saved to storage:', wordCount, 'words');
+
+    // Then try to notify background/popup
+    chrome.runtime.sendMessage({
+      type: 'TEXT_CAPTURED',
+      text: text,
+      wordCount: wordCount
+    }).catch(() => {
+      // Popup might be closed, that's OK - data is in storage
+      console.log('[CW] Popup not open, text saved to storage');
+    });
+
     showToast(`Captured: ${wordCount} từ`, 'success');
   });
 }

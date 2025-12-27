@@ -7,7 +7,6 @@
 // State
 // ========================================
 let currentHotkey = { ctrl: true, shift: true, alt: false, key: 'C' };
-let popupWindowId = null;
 
 // ========================================
 // Initialize
@@ -33,60 +32,7 @@ chrome.storage.local.get(['settings'], (data) => {
   }
 });
 
-// ========================================
-// Click on Extension Icon - Open Resizable Window
-// ========================================
-chrome.action.onClicked.addListener(async (tab) => {
-  // Check if popup window already exists
-  if (popupWindowId !== null) {
-    try {
-      const existingWindow = await chrome.windows.get(popupWindowId);
-      if (existingWindow) {
-        // Focus existing window
-        chrome.windows.update(popupWindowId, { focused: true });
-        return;
-      }
-    } catch (e) {
-      // Window doesn't exist anymore
-      popupWindowId = null;
-    }
-  }
-
-  // Get screen dimensions
-  const screen = await chrome.system.display.getInfo();
-  const primaryDisplay = screen[0];
-  const screenWidth = primaryDisplay.bounds.width;
-  const screenHeight = primaryDisplay.bounds.height;
-
-  // Default window size (small - can be resized by user)
-  const windowWidth = 340;
-  const windowHeight = 500;
-
-  // Position at right side of screen
-  const left = screenWidth - windowWidth - 20;
-  const top = 100;
-
-  // Create new popup window
-  const newWindow = await chrome.windows.create({
-    url: chrome.runtime.getURL('popup.html'),
-    type: 'popup',
-    width: windowWidth,
-    height: windowHeight,
-    left: left,
-    top: top,
-    focused: true
-  });
-
-  popupWindowId = newWindow.id;
-
-  // Listen for window close
-  chrome.windows.onRemoved.addListener(function onRemoved(windowId) {
-    if (windowId === popupWindowId) {
-      popupWindowId = null;
-      chrome.windows.onRemoved.removeListener(onRemoved);
-    }
-  });
-});
+// Popup is now handled via default_popup in manifest.json
 
 // ========================================
 // Message Router
@@ -144,8 +90,15 @@ async function handleInjectToGemini(text, autoEnter) {
   console.log('[Background] Handling inject to Gemini:', text.substring(0, 50));
 
   try {
-    // Find all Gemini tabs
-    const geminiTabs = await chrome.tabs.query({ url: 'https://gemini.google.com/*' });
+    // Find all Gemini tabs - try multiple URL patterns
+    let geminiTabs = await chrome.tabs.query({ url: 'https://gemini.google.com/*' });
+
+    // If not found, try without wildcard
+    if (!geminiTabs || geminiTabs.length === 0) {
+      geminiTabs = await chrome.tabs.query({});
+      geminiTabs = geminiTabs.filter(tab => tab.url && tab.url.includes('gemini.google.com'));
+      console.log('[Background] Found tabs via filter:', geminiTabs.length);
+    }
 
     if (!geminiTabs || geminiTabs.length === 0) {
       console.log('[Background] No Gemini tab found');
@@ -156,44 +109,164 @@ async function handleInjectToGemini(text, autoEnter) {
     let targetTab = geminiTabs.find(tab => tab.active) || geminiTabs[0];
     console.log('[Background] Target tab:', targetTab.id, targetTab.url);
 
-    // Try to send message to content script
+    // Direct injection using executeScript (more reliable)
+    console.log('[Background] Injecting directly via executeScript');
+
     try {
-      const response = await chrome.tabs.sendMessage(targetTab.id, {
-        type: 'INJECT_COMMAND',
-        text: text,
-        autoEnter: autoEnter
-      });
-
-      console.log('[Background] Content script response:', response);
-      return { success: true };
-
-    } catch (e) {
-      console.log('[Background] Content script not responding, injecting manually');
-
-      // Content script might not be loaded, inject it
-      await chrome.scripting.executeScript({
+      const results = await chrome.scripting.executeScript({
         target: { tabId: targetTab.id },
-        files: ['js/content.js']
+        func: (textToInject, shouldAutoEnter) => {
+          console.log('[CW-Inject] ========== STARTING INJECTION ==========');
+          console.log('[CW-Inject] Text:', textToInject.substring(0, 50));
+          console.log('[CW-Inject] Window size:', window.innerWidth, 'x', window.innerHeight);
+
+          // Log ALL contenteditable elements first
+          const allEditable = document.querySelectorAll('[contenteditable="true"]');
+          console.log('[CW-Inject] Total contenteditable elements:', allEditable.length);
+          allEditable.forEach((el, i) => {
+            const rect = el.getBoundingClientRect();
+            console.log(`[CW-Inject] #${i}:`, {
+              tag: el.tagName,
+              class: el.className.substring(0, 50),
+              top: Math.round(rect.top),
+              width: Math.round(rect.width),
+              height: Math.round(rect.height),
+              visible: rect.width > 0 && rect.height > 0
+            });
+          });
+
+          // Find input element - Try simpler approach first
+          let input = null;
+
+          // Method 1: Find .ql-editor (Quill editor used by Gemini)
+          const qlEditors = document.querySelectorAll('.ql-editor');
+          console.log('[CW-Inject] Found .ql-editor elements:', qlEditors.length);
+          for (const el of qlEditors) {
+            const rect = el.getBoundingClientRect();
+            if (rect.width > 50 && rect.height > 10) {
+              input = el;
+              console.log('[CW-Inject] Using .ql-editor');
+              break;
+            }
+          }
+
+          // Method 2: Any contenteditable that's visible
+          if (!input) {
+            for (const el of allEditable) {
+              const rect = el.getBoundingClientRect();
+              if (rect.width > 100 && rect.height > 20) {
+                input = el;
+                console.log('[CW-Inject] Using first visible contenteditable');
+                break;
+              }
+            }
+          }
+
+          if (!input) {
+            console.error('[CW-Inject] NO INPUT FOUND!');
+            return { success: false, error: 'Không tìm thấy ô nhập! Hãy click vào ô chat trước.' };
+          }
+
+          console.log('[CW-Inject] Selected input:', input.tagName, input.className);
+
+          // INJECT TEXT
+          try {
+            // Focus the input
+            input.focus();
+            console.log('[CW-Inject] Focused input');
+
+            // Method A: Try execCommand first
+            document.execCommand('selectAll', false, null);
+            const inserted = document.execCommand('insertText', false, textToInject);
+            console.log('[CW-Inject] execCommand insertText result:', inserted);
+
+            if (!inserted) {
+              // Method B: Direct text manipulation
+              console.log('[CW-Inject] execCommand failed, trying direct manipulation');
+
+              // For Quill editor, we need to work with its internal structure
+              if (input.classList.contains('ql-editor')) {
+                // Clear and set via innerHTML with a paragraph
+                while (input.firstChild) {
+                  input.removeChild(input.firstChild);
+                }
+                const p = document.createElement('p');
+                p.textContent = textToInject;
+                input.appendChild(p);
+                console.log('[CW-Inject] Set via innerHTML for Quill');
+              } else {
+                input.textContent = textToInject;
+              }
+            }
+
+            // Dispatch events
+            input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+
+            // Also try dispatching on parent elements
+            if (input.parentElement) {
+              input.parentElement.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            console.log('[CW-Inject] Events dispatched');
+            console.log('[CW-Inject] Current input content:', input.textContent.substring(0, 50));
+
+          } catch (injectErr) {
+            console.error('[CW-Inject] Injection error:', injectErr);
+            return { success: false, error: 'Lỗi inject: ' + injectErr.message };
+          }
+
+          // Auto send if requested
+          if (shouldAutoEnter) {
+            setTimeout(() => {
+              console.log('[CW-Inject] Looking for send button...');
+
+              // Find send button - look for button near input area
+              const buttons = document.querySelectorAll('button:not([disabled])');
+              console.log('[CW-Inject] Found', buttons.length, 'enabled buttons');
+
+              let sendBtn = null;
+
+              // Try aria-label first
+              sendBtn = document.querySelector('button[aria-label*="Send" i]:not([disabled])') ||
+                        document.querySelector('button[aria-label*="Gửi" i]:not([disabled])');
+
+              if (!sendBtn) {
+                // Find button with send icon (arrow) near bottom
+                for (const btn of buttons) {
+                  const rect = btn.getBoundingClientRect();
+                  // Button should be visible and in lower half of screen
+                  if (rect.width > 20 && rect.height > 20 && rect.top > window.innerHeight * 0.4) {
+                    const svg = btn.querySelector('svg');
+                    if (svg) {
+                      sendBtn = btn;
+                      console.log('[CW-Inject] Found button with SVG at bottom');
+                      break;
+                    }
+                  }
+                }
+              }
+
+              if (sendBtn) {
+                console.log('[CW-Inject] Clicking send button');
+                sendBtn.click();
+              } else {
+                console.log('[CW-Inject] No send button found');
+              }
+            }, 500);
+          }
+
+          return { success: true };
+        },
+        args: [text, autoEnter]
       });
 
-      // Wait a bit for script to initialize
-      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('[Background] ExecuteScript results:', results);
+      return results[0]?.result || { success: true };
 
-      // Retry sending message
-      try {
-        const response = await chrome.tabs.sendMessage(targetTab.id, {
-          type: 'INJECT_COMMAND',
-          text: text,
-          autoEnter: autoEnter
-        });
-
-        console.log('[Background] Retry response:', response);
-        return { success: true };
-
-      } catch (retryError) {
-        console.error('[Background] Retry failed:', retryError);
-        return { success: false, error: 'Lỗi: Hãy refresh trang Gemini!' };
-      }
+    } catch (execError) {
+      console.error('[Background] ExecuteScript error:', execError);
+      return { success: false, error: 'Lỗi: ' + execError.message };
     }
 
   } catch (error) {

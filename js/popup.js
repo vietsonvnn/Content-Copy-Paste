@@ -31,7 +31,14 @@ function showToast(message, type = 'info') {
 // State Management
 // ========================================
 const state = {
-  totalTarget: 0,
+  totalTarget: 5000, // Default 5000 words
+  numParts: 9, // Default 9 parts
+  title: '',
+  sampleContent: '', // Content from uploaded file
+  sampleFileName: '', // Original file name
+  currentFlowStep: 0,
+  flowSteps: {}, // Track status of each step (pending, done)
+  flowClickCounts: {}, // Track how many times each button was clicked
   commands: [],
   currentCommandIndex: 0,
   parts: [],
@@ -44,10 +51,87 @@ const state = {
 };
 
 // ========================================
+// Flow Commands Configuration
+// ========================================
+const FLOW_COMMANDS = {
+  // Stage 1: Khởi đầu
+  0: 'Xin chào bạn',
+
+  // Stage 2: Setup bài viết
+  1: 'Tôi có tiêu đề này: {TITLE}',
+  2: 'trước khi bắt đầu viết tôi muốn bạn hãy dùng những nội dung chính trong bài viết sau để viết lại nội dung mới hay hơn, tạo sự cấp bách và thu hút khán giả có vấn đề đang mắc phải: "{SAMPLE_CONTENT}"',
+  3: 'tôi chưa yêu cầu bạn viết, hãy làm lần lượt theo đúng yêu cầu của tôi, tôi muốn bạn đọc lại 1 lần nữa bài mẫu tôi vừa gửi và nắm trọn các ý chính',
+  4: 'Cho tôi biết trước khi lập outline 9 phần thì nội dung trên bạn sẽ áp dụng văn phong và kỹ thuật viết dạng mấy? khung trắng 9 phần dạng mấy? và mở đầu dạng nào?',
+  5: 'trong bài viết mẫu tôi gửi trên có nhắc đến tên bác sĩ hay tên nhân vật nào khác không. Nếu có hãy liệt kê tên bác sĩ: {DOCTOR_NAME}',
+
+  // Stage 3: Outline
+  6: 'ok, hãy lập outline 9 phần dựa trên tất cả những thông tin và kiến thức bạn có về nội dung trên và trong dự án này',
+  7: 'Thêm cho tôi yếu tố {SEASON} vào bài viết trên',
+  8: 'dựa vào Dàn Ý Kịch Bản Chi Tiết (Outline 9 Phần), gợi ý cho tôi số lượng từ mỗi phần tương ứng để tổng số lượng từ tiếng Hàn đạt {TOTAL} từ',
+
+  // Stage 4: Viết nội dung (9-17 = Part 1-9)
+  9: 'Viết phần 1 bám sát tài liệu bài viết mẫu bên trên. Viết đủ {WORDS_P1} từ có mở đầu tương tự bài viết mẫu bên trên. Nội dung được viết bằng tiếng Hàn, xưng hô "tôi" (저/제) và gọi khán giả là "bạn/các bạn" (여러분), phù hợp với văn hóa Hàn Quốc và các quy định của YouTube. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
+  10: 'Viết phần 2 bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS_P2} từ. Không viết trên canvas. Tiếp nối phần 1, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
+  11: 'Viết phần 3 bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS_P3} từ. Không viết trên canvas. Tiếp nối phần 2, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
+  12: 'Viết phần 4 bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS_P4} từ. Không viết trên canvas. Tiếp nối phần 3, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
+  13: 'Viết phần 5 bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS_P5} từ. Không viết trên canvas. Tiếp nối phần 4, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
+  14: 'Viết phần 6 bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS_P6} từ. Không viết trên canvas. Tiếp nối phần 5, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
+  15: 'Viết phần 7 bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS_P7} từ. Không viết trên canvas. Tiếp nối phần 6, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
+  16: 'Viết phần 8 bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS_P8} từ. Không viết trên canvas. Tiếp nối phần 7, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
+  17: 'Viết phần 9 Kết thúc Part 9 thật trọn vẹn theo đúng outline (đóng vòng cung đầy đủ, đưa ra lời khuyên cuối cùng để câu chuyện khép lại xúc động) bám sát tài liệu bài viết mẫu bên trên đủ {WORDS_P9} từ không bao gồm dấu cách. Không viết trên canvas. Tiếp nối phần 8, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
+
+  // Stage 5: Hoàn thành
+  18: 'Kiểm tra lại xem toàn bộ nội dung của bài viết trên tính đồng nhất và liên kết mạch hay không? Có nội dung nào bất hợp lý phi thực tế không? Kiểm tra lại xem đã đúng ngữ pháp Hàn cho người nghe chưa? Nếu có đoạn nào bất hợp lí mà nội dung có sai sự thật hay đề xuất.'
+};
+
+// Default word counts for each part
+const DEFAULT_WORD_COUNTS = {
+  P1: 230,
+  P2: 800,
+  P3: 800,
+  P4: 800,
+  P5: 800,
+  P6: 800,
+  P7: 800,
+  P8: 800,
+  P9: 500
+};
+
+// Current word counts (can be modified by user)
+let wordCounts = { ...DEFAULT_WORD_COUNTS };
+
+// Current selected part for content clipboard (1-indexed)
+let currentContentPart = 1;
+
+// Step labels for editor
+const STEP_LABELS = {
+  0: 'Chào hỏi',
+  1: 'Nhập tiêu đề',
+  2: 'Bài mẫu đối thủ',
+  3: 'Yêu cầu đọc lại',
+  4: 'Hỏi văn phong',
+  5: 'Hỏi tên bác sĩ',
+  6: 'Lập outline',
+  7: 'Thêm yếu tố mùa',
+  8: 'Phân bổ số từ',
+  9: 'Viết phần 1',
+  10: 'Viết phần 2',
+  11: 'Viết phần 3',
+  12: 'Viết phần 4',
+  13: 'Viết phần 5',
+  14: 'Viết phần 6',
+  15: 'Viết phần 7',
+  16: 'Viết phần 8',
+  17: 'Viết phần 9',
+  18: 'Kiểm tra cuối'
+};
+
+// ========================================
 // DOM Elements
 // ========================================
 const elements = {
   // Header
+  popoutBtn: document.getElementById('popoutBtn'),
   resetBtn: document.getElementById('resetBtn'),
   toastContainer: document.getElementById('toastContainer'),
 
@@ -57,13 +141,33 @@ const elements = {
   totalPercent: document.getElementById('totalPercent'),
   totalProgressBar: document.getElementById('totalProgressBar'),
   totalTargetInput: document.getElementById('totalTargetInput'),
-  commandInput: document.getElementById('commandInput'),
-  customCommandInput: document.getElementById('customCommandInput'),
-  parseCommands: document.getElementById('parseCommands'),
-  clearCommands: document.getElementById('clearCommands'),
-  commandButtonsCard: document.getElementById('commandButtonsCard'),
-  commandButtons: document.getElementById('commandButtons'),
-  parsedCount: document.getElementById('parsedCount'),
+  numPartsInput: document.getElementById('numPartsInput'),
+  titleInput: document.getElementById('titleInput'),
+
+  // File Browse
+  sampleFileInput: document.getElementById('sampleFileInput'),
+  browseFileBtn: document.getElementById('browseFileBtn'),
+  fileName: document.getElementById('fileName'),
+  clearFileBtn: document.getElementById('clearFileBtn'),
+
+  // Dynamic containers
+  partButtonsContainer: document.getElementById('partButtonsContainer'),
+  wordEditGrid: document.getElementById('wordEditGrid'),
+  stage3Title: document.getElementById('stage3Title'),
+
+  // Flow Commands
+  flowCard: document.getElementById('flowCard'),
+  flowStatus: document.getElementById('flowStatus'),
+
+  // Command Editor
+  commandEditorCard: document.getElementById('commandEditorCard'),
+  editorStepLabel: document.getElementById('editorStepLabel'),
+  commandEditor: document.getElementById('commandEditor'),
+  closeEditor: document.getElementById('closeEditor'),
+  resetCommand: document.getElementById('resetCommand'),
+  sendCommand: document.getElementById('sendCommand'),
+
+  // Legacy (for compatibility)
   clipboardCard: document.getElementById('clipboardCard'),
   clipboardTableWrapper: document.getElementById('clipboardTableWrapper'),
   copyAllBtn: document.getElementById('copyAllBtn'),
@@ -74,6 +178,16 @@ const elements = {
   hotkeyRecorder: document.getElementById('hotkeyRecorder'),
   hotkeyDisplay: document.getElementById('hotkeyDisplay'),
   hotkeyRecording: document.getElementById('hotkeyRecording'),
+
+  // Word Count Summary & Modal
+  wordsSummaryBar: document.getElementById('wordsSummaryBar'),
+  wordsSummaryText: document.getElementById('wordsSummaryText'),
+  wordsSummaryTotal: document.getElementById('wordsSummaryTotal'),
+  wordCountModal: document.getElementById('wordCountModal'),
+  closeWordCountModal: document.getElementById('closeWordCountModal'),
+  cancelWordCount: document.getElementById('cancelWordCount'),
+  saveWordCount: document.getElementById('saveWordCount'),
+  wordEditTotal: document.getElementById('wordEditTotal'),
 
   // Capture Modal
   captureModal: document.getElementById('captureModal'),
@@ -99,7 +213,32 @@ const elements = {
   viewModalWordCount: document.getElementById('viewModalWordCount'),
   viewContentText: document.getElementById('viewContentText'),
   closeViewModal: document.getElementById('closeViewModal'),
-  copyAll: document.getElementById('copyAll')
+  copyAll: document.getElementById('copyAll'),
+
+  // Content Clipboard Section
+  contentClipboardCard: document.getElementById('contentClipboardCard'),
+  partTabs: document.getElementById('partTabs'),
+  contentEditorWrapper: document.getElementById('contentEditorWrapper'),
+  editorPartLabel: document.getElementById('editorPartLabel'),
+  editorWords: document.getElementById('editorWords'),
+  editorTarget: document.getElementById('editorTarget'),
+  editorDiff: document.getElementById('editorDiff'),
+  contentEditorTextarea: document.getElementById('contentEditorTextarea'),
+
+  // Full Screen Editor
+  openFullscreenBtn: document.getElementById('openFullscreenBtn'),
+  fullscreenEditorModal: document.getElementById('fullscreenEditorModal'),
+  closeFullscreenEditor: document.getElementById('closeFullscreenEditor'),
+  fsCopyAll: document.getElementById('fsCopyAll'),
+  fsEditorTotalWritten: document.getElementById('fsEditorTotalWritten'),
+  fsEditorTotalTarget: document.getElementById('fsEditorTotalTarget'),
+  fsEditorPercent: document.getElementById('fsEditorPercent'),
+  fsPartTabs: document.getElementById('fsPartTabs'),
+  fsPartLabel: document.getElementById('fsPartLabel'),
+  fsWords: document.getElementById('fsWords'),
+  fsTarget: document.getElementById('fsTarget'),
+  fsDiff: document.getElementById('fsDiff'),
+  fsTextarea: document.getElementById('fsTextarea')
 };
 
 // ========================================
@@ -123,6 +262,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // ========================================
 function setupEventListeners() {
   // Header buttons
+  if (elements.popoutBtn) {
+    elements.popoutBtn.addEventListener('click', handlePopout);
+  }
   if (elements.resetBtn) {
     elements.resetBtn.addEventListener('click', handleReset);
   }
@@ -130,10 +272,73 @@ function setupEventListeners() {
   // Main Tab
   elements.totalTargetInput.addEventListener('input', handleTotalTargetChange);
   elements.totalTargetInput.addEventListener('change', handleTotalTargetChange);
-  elements.parseCommands.addEventListener('click', handleParseCommands);
-  elements.clearCommands.addEventListener('click', handleClearCommands);
-  elements.copyAllBtn.addEventListener('click', handleCopyAll);
-  elements.exportBtn.addEventListener('click', handleExportData);
+
+  // Title input
+  if (elements.titleInput) {
+    elements.titleInput.addEventListener('input', handleTitleChange);
+    elements.titleInput.addEventListener('change', handleTitleChange);
+  }
+
+  // Number of parts input
+  if (elements.numPartsInput) {
+    elements.numPartsInput.addEventListener('change', handleNumPartsChange);
+  }
+
+  // File browse
+  if (elements.browseFileBtn) {
+    elements.browseFileBtn.addEventListener('click', () => elements.sampleFileInput.click());
+  }
+  if (elements.sampleFileInput) {
+    elements.sampleFileInput.addEventListener('change', handleFileSelect);
+  }
+  if (elements.clearFileBtn) {
+    elements.clearFileBtn.addEventListener('click', handleFileClear);
+  }
+
+  // Accordion headers
+  setupAccordionListeners();
+
+  // Word count summary bar
+  if (elements.wordsSummaryBar) {
+    elements.wordsSummaryBar.addEventListener('click', openWordCountModal);
+  }
+
+  // Word count modal
+  if (elements.closeWordCountModal) {
+    elements.closeWordCountModal.addEventListener('click', closeWordCountModal);
+  }
+  if (elements.cancelWordCount) {
+    elements.cancelWordCount.addEventListener('click', closeWordCountModal);
+  }
+  if (elements.saveWordCount) {
+    elements.saveWordCount.addEventListener('click', saveWordCounts);
+  }
+  if (elements.wordCountModal) {
+    elements.wordCountModal.querySelector('.modal-overlay').addEventListener('click', closeWordCountModal);
+  }
+
+  // Preset buttons
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => handlePreset(btn.dataset.preset));
+  });
+
+  // Flow buttons
+  setupFlowButtonListeners();
+
+  // Command Editor
+  if (elements.closeEditor) {
+    elements.closeEditor.addEventListener('click', closeCommandEditor);
+  }
+  if (elements.resetCommand) {
+    elements.resetCommand.addEventListener('click', resetCurrentCommand);
+  }
+  if (elements.sendCommand) {
+    elements.sendCommand.addEventListener('click', sendEditorCommand);
+  }
+
+  // Legacy handlers
+  if (elements.copyAllBtn) elements.copyAllBtn.addEventListener('click', handleCopyAll);
+  if (elements.exportBtn) elements.exportBtn.addEventListener('click', handleExportData);
 
   // Hotkey (inline)
   if (elements.hotkeyRecorder) {
@@ -160,6 +365,41 @@ function setupEventListeners() {
   if (elements.copyAll) {
     elements.copyAll.addEventListener('click', copyContent);
   }
+
+  // Content Clipboard Editor
+  setupContentEditorListeners();
+
+  // Full Screen Editor
+  if (elements.openFullscreenBtn) {
+    elements.openFullscreenBtn.addEventListener('click', openFullscreenEditor);
+  }
+  if (elements.closeFullscreenEditor) {
+    elements.closeFullscreenEditor.addEventListener('click', closeFullscreenEditor);
+  }
+  if (elements.fullscreenEditorModal) {
+    const overlay = elements.fullscreenEditorModal.querySelector('.modal-overlay');
+    if (overlay) overlay.addEventListener('click', closeFullscreenEditor);
+  }
+  if (elements.fsCopyAll) {
+    elements.fsCopyAll.addEventListener('click', handleCopyAll);
+  }
+}
+
+// ========================================
+// Popout to Window
+// ========================================
+function handlePopout() {
+  // Open popup.html in a new window
+  chrome.windows.create({
+    url: chrome.runtime.getURL('popup.html'),
+    type: 'popup',
+    width: 400,
+    height: 700,
+    focused: true
+  }, () => {
+    // Close current popup
+    window.close();
+  });
 }
 
 // ========================================
@@ -168,22 +408,61 @@ function setupEventListeners() {
 function handleReset() {
   if (confirm('Bạn có chắc muốn bắt đầu bài mới? Tất cả dữ liệu hiện tại sẽ bị xóa.')) {
     // Reset state
-    state.totalTarget = 0;
+    state.totalTarget = 5000;
+    state.numParts = 9;
+    state.title = '';
+    state.sampleContent = '';
+    state.sampleFileName = '';
+    state.currentFlowStep = 0;
+    state.flowSteps = {};
+    state.flowClickCounts = {};
     state.commands = [];
     state.currentCommandIndex = 0;
     state.parts = [];
     state.capturedContents = {};
 
+    // Reset word counts
+    recalculateWordCounts();
+
     // Clear form inputs
-    elements.totalTargetInput.value = '';
-    elements.commandInput.value = '';
-    if (elements.customCommandInput) {
-      elements.customCommandInput.value = '';
+    elements.totalTargetInput.value = '5000';
+    if (elements.numPartsInput) elements.numPartsInput.value = '9';
+    if (elements.titleInput) elements.titleInput.value = '';
+
+    // Clear file input
+    if (elements.sampleFileInput) elements.sampleFileInput.value = '';
+    if (elements.fileName) {
+      elements.fileName.textContent = 'Chưa chọn file';
+      elements.fileName.classList.remove('has-file');
+      elements.fileName.title = '';
     }
+    if (elements.clearFileBtn) elements.clearFileBtn.style.display = 'none';
 
     // Hide cards
-    elements.commandButtonsCard.style.display = 'none';
-    elements.clipboardCard.style.display = 'none';
+    if (elements.clipboardCard) elements.clipboardCard.style.display = 'none';
+
+    // Reset stage classes
+    document.querySelectorAll('.stage-accordion').forEach(el => {
+      el.classList.remove('completed', 'expanded');
+    });
+    document.querySelectorAll('.stage-status-icon').forEach(el => {
+      el.textContent = '○';
+      el.classList.remove('done', 'in-progress');
+    });
+    document.querySelectorAll('.accordion-header').forEach(el => {
+      el.classList.remove('active');
+    });
+    document.querySelectorAll('.accordion-content').forEach(el => {
+      el.classList.remove('active');
+    });
+
+    // Expand stage 3 by default
+    const stage3 = document.getElementById('stage3Accordion');
+    const stage3Content = document.getElementById('stage3Content');
+    const stage3Header = stage3?.querySelector('.accordion-header');
+    if (stage3) stage3.classList.add('expanded');
+    if (stage3Content) stage3Content.classList.add('active');
+    if (stage3Header) stage3Header.classList.add('active');
 
     // Save and render
     saveState();
@@ -194,29 +473,646 @@ function handleReset() {
 }
 
 // ========================================
+// Title Handler
+// ========================================
+function handleTitleChange(e) {
+  state.title = e.target.value.trim();
+  saveState();
+}
+
+// ========================================
+// Number of Parts Handler
+// ========================================
+function handleNumPartsChange(e) {
+  const newNumParts = parseInt(e.target.value) || 9;
+  if (newNumParts < 3 || newNumParts > 20) {
+    showToast('Số phần phải từ 3 đến 20', 'warning');
+    e.target.value = state.numParts;
+    return;
+  }
+
+  state.numParts = newNumParts;
+
+  // Reset currentContentPart if it exceeds new number of parts
+  if (currentContentPart > newNumParts) {
+    currentContentPart = 1;
+  }
+
+  // Recalculate word counts for new number of parts
+  recalculateWordCounts();
+
+  // Regenerate UI
+  renderPartButtons();
+  updateWordsSummaryBar();
+  updateStageProgress();
+  renderContentClipboard(); // Update content clipboard tabs
+  saveState();
+
+  showToast(`Đã đổi thành ${newNumParts} phần`, 'success');
+}
+
+function recalculateWordCounts() {
+  const total = state.totalTarget || 5000;
+  const numParts = state.numParts || 9;
+
+  // First and last parts get less, middle parts share equally
+  const firstPartRatio = 0.05; // 5% for first part
+  const lastPartRatio = 0.08; // 8% for last part
+  const middleRatio = (1 - firstPartRatio - lastPartRatio) / (numParts - 2);
+
+  wordCounts = {};
+  for (let i = 1; i <= numParts; i++) {
+    let ratio;
+    if (i === 1) ratio = firstPartRatio;
+    else if (i === numParts) ratio = lastPartRatio;
+    else ratio = middleRatio;
+
+    wordCounts[`P${i}`] = Math.round(total * ratio);
+  }
+
+  // Save to storage
+  chrome.storage.local.set({ wordCounts: wordCounts, numParts: state.numParts });
+}
+
+// ========================================
+// File Browse Handlers
+// ========================================
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (!file.name.endsWith('.txt')) {
+    showToast('Vui lòng chọn file .txt', 'error');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    state.sampleContent = event.target.result;
+    state.sampleFileName = file.name;
+
+    // Extract title from filename
+    const extractedTitle = extractTitleFromFilename(file.name);
+    if (extractedTitle) {
+      state.title = extractedTitle;
+      if (elements.titleInput) {
+        elements.titleInput.value = extractedTitle;
+      }
+    }
+
+    // Update UI
+    elements.fileName.textContent = file.name.length > 25
+      ? file.name.substring(0, 22) + '...'
+      : file.name;
+    elements.fileName.classList.add('has-file');
+    elements.fileName.title = file.name;
+    elements.clearFileBtn.style.display = 'flex';
+
+    saveState();
+    showToast('Đã tải file bài mẫu!', 'success');
+  };
+
+  reader.onerror = () => {
+    showToast('Lỗi đọc file!', 'error');
+  };
+
+  reader.readAsText(file);
+}
+
+function handleFileClear() {
+  state.sampleContent = '';
+  state.sampleFileName = '';
+
+  elements.sampleFileInput.value = '';
+  elements.fileName.textContent = 'Chưa chọn file';
+  elements.fileName.classList.remove('has-file');
+  elements.fileName.title = '';
+  elements.clearFileBtn.style.display = 'none';
+
+  saveState();
+  showToast('Đã xóa file bài mẫu', 'info');
+}
+
+function extractTitleFromFilename(filename) {
+  // Remove file extension
+  let title = filename.replace(/\.txt$/i, '');
+
+  // Remove ALL prefix brackets like [Korean (auto-generated)] - greedy, multiple times
+  while (title.match(/^\[.*?\]\s*/)) {
+    title = title.replace(/^\[.*?\]\s*/, '');
+  }
+
+  // Remove ALL suffix brackets like [DownSub.com] - greedy, multiple times
+  while (title.match(/\s*\[.*?\]$/)) {
+    title = title.replace(/\s*\[.*?\]$/, '');
+  }
+
+  // Clean up extra whitespace
+  title = title.trim();
+
+  return title;
+}
+
+// ========================================
+// Accordion Handlers
+// ========================================
+function setupAccordionListeners() {
+  document.querySelectorAll('.accordion-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const targetId = header.dataset.target;
+      const content = document.getElementById(targetId);
+      const accordionItem = header.closest('.accordion-item');
+
+      if (!content || !accordionItem) return;
+
+      // Toggle current accordion
+      const isExpanded = accordionItem.classList.contains('expanded');
+
+      if (isExpanded) {
+        accordionItem.classList.remove('expanded');
+        header.classList.remove('active');
+        content.classList.remove('active');
+      } else {
+        accordionItem.classList.add('expanded');
+        header.classList.add('active');
+        content.classList.add('active');
+      }
+    });
+  });
+}
+
+// ========================================
+// Word Count Modal Handlers
+// ========================================
+function renderWordEditGrid() {
+  if (!elements.wordEditGrid) return;
+
+  const numParts = state.numParts || 9;
+  let html = '';
+
+  for (let i = 1; i <= numParts; i++) {
+    const value = wordCounts[`P${i}`] || Math.round((state.totalTarget || 5000) / numParts);
+    html += `
+      <div class="word-edit-row">
+        <span class="word-edit-label">Phần ${i}</span>
+        <input type="number" class="word-edit-input" id="wordInput${i}" value="${value}" min="50">
+      </div>
+    `;
+  }
+
+  elements.wordEditGrid.innerHTML = html;
+
+  // Add event listeners
+  for (let i = 1; i <= numParts; i++) {
+    const input = document.getElementById(`wordInput${i}`);
+    if (input) {
+      input.addEventListener('input', updateWordCountTotal);
+    }
+  }
+}
+
+function openWordCountModal() {
+  // Regenerate grid for current numParts
+  renderWordEditGrid();
+  updateWordCountTotal();
+  elements.wordCountModal.classList.add('active');
+}
+
+function closeWordCountModal() {
+  elements.wordCountModal.classList.remove('active');
+}
+
+function updateWordCountTotal() {
+  const numParts = state.numParts || 9;
+  let total = 0;
+
+  for (let i = 1; i <= numParts; i++) {
+    const input = document.getElementById(`wordInput${i}`);
+    if (input) {
+      total += parseInt(input.value) || 0;
+    }
+  }
+
+  if (elements.wordEditTotal) {
+    elements.wordEditTotal.textContent = total.toLocaleString() + ' từ';
+  }
+}
+
+function saveWordCounts() {
+  const numParts = state.numParts || 9;
+
+  // Save values from inputs
+  wordCounts = {};
+  let total = 0;
+  for (let i = 1; i <= numParts; i++) {
+    const input = document.getElementById(`wordInput${i}`);
+    if (input) {
+      const value = parseInt(input.value) || Math.round((state.totalTarget || 5000) / numParts);
+      wordCounts[`P${i}`] = value;
+      total += value;
+    }
+  }
+
+  // Also update totalTarget to match the new total
+  state.totalTarget = total;
+  if (elements.totalTargetInput) {
+    elements.totalTargetInput.value = total;
+  }
+
+  // Update UI - call ALL update functions
+  updateWordsSummaryBar();
+  renderPartButtons();
+  renderProgress();
+
+  // Save to storage
+  chrome.storage.local.set({ wordCounts: wordCounts, totalTarget: state.totalTarget });
+  saveState();
+
+  closeWordCountModal();
+  showToast('Đã lưu số từ!', 'success');
+}
+
+function handlePreset(preset) {
+  const numParts = state.numParts || 9;
+  let targetTotal;
+
+  switch (preset) {
+    case '3000':
+      targetTotal = 3000;
+      break;
+    case '5000':
+      targetTotal = 5000;
+      break;
+    case '8000':
+      targetTotal = 8000;
+      break;
+    case 'even':
+      targetTotal = state.totalTarget || 5000;
+      break;
+    default:
+      return;
+  }
+
+  // Distribute based on number of parts
+  const firstPartRatio = 0.05;
+  const lastPartRatio = 0.08;
+  const middleRatio = (1 - firstPartRatio - lastPartRatio) / (numParts - 2);
+
+  for (let i = 1; i <= numParts; i++) {
+    let ratio;
+    if (preset === 'even') {
+      ratio = 1 / numParts;
+    } else if (i === 1) {
+      ratio = firstPartRatio;
+    } else if (i === numParts) {
+      ratio = lastPartRatio;
+    } else {
+      ratio = middleRatio;
+    }
+
+    const input = document.getElementById(`wordInput${i}`);
+    if (input) {
+      input.value = Math.round(targetTotal * ratio);
+    }
+  }
+
+  updateWordCountTotal();
+}
+
+function updateWordsSummaryBar() {
+  if (!elements.wordsSummaryText || !elements.wordsSummaryTotal) return;
+
+  const numParts = state.numParts || 9;
+  const p1 = wordCounts.P1 || 0;
+  const pLast = wordCounts[`P${numParts}`] || 0;
+
+  // Check if middle parts are the same
+  let middleSame = true;
+  const middleValue = wordCounts.P2;
+  for (let i = 2; i < numParts; i++) {
+    if (wordCounts[`P${i}`] !== middleValue) {
+      middleSame = false;
+      break;
+    }
+  }
+
+  let summaryText;
+  if (numParts <= 3) {
+    // Show all parts for small numbers
+    summaryText = Object.entries(wordCounts)
+      .map(([k, v]) => `${k}:${v}`)
+      .join(' ');
+  } else if (middleSame) {
+    summaryText = `P1:${p1} P2-${numParts - 1}:${middleValue} P${numParts}:${pLast}`;
+  } else {
+    summaryText = `P1:${p1} ... P${numParts}:${pLast}`;
+  }
+
+  const total = Object.values(wordCounts).reduce((a, b) => a + b, 0);
+
+  elements.wordsSummaryText.textContent = summaryText;
+  elements.wordsSummaryTotal.textContent = `= ${total.toLocaleString()} từ`;
+}
+
+function renderPartButtons() {
+  if (!elements.partButtonsContainer) return;
+
+  const numParts = state.numParts || 9;
+  let html = '';
+
+  for (let i = 1; i <= numParts; i++) {
+    const step = 8 + i; // Part 1 = step 9, Part 2 = step 10, etc.
+    const words = wordCounts[`P${i}`] || Math.round((state.totalTarget || 5000) / numParts);
+    const isDone = state.flowSteps[step] === 'done';
+
+    html += `
+      <button class="flow-btn flow-btn-write flow-btn-soft ${isDone ? 'done' : ''}"
+              data-step="${step}" data-type="soft" data-part="${i}">
+        <span class="flow-btn-num">P${i}</span>
+        <span class="flow-btn-words">${words}w</span>
+      </button>
+    `;
+  }
+
+  elements.partButtonsContainer.innerHTML = html;
+
+  // Update stage 3 title and progress
+  if (elements.stage3Title) {
+    elements.stage3Title.textContent = `Viết nội dung (${numParts})`;
+  }
+  const stage3Progress = document.getElementById('stage3Progress');
+  if (stage3Progress) {
+    const doneCount = countPartsDone();
+    stage3Progress.textContent = `${doneCount}/${numParts}`;
+  }
+
+  // Re-attach click listeners
+  setupFlowButtonListeners();
+}
+
+function countPartsDone() {
+  const numParts = state.numParts || 9;
+  let count = 0;
+  for (let i = 1; i <= numParts; i++) {
+    const step = 8 + i;
+    if (state.flowSteps[step] === 'done') count++;
+  }
+  return count;
+}
+
+// ========================================
+// Flow Button Handlers
+// ========================================
+let currentEditingStep = -1;
+
+function setupFlowButtonListeners() {
+  const flowButtons = document.querySelectorAll('.flow-btn');
+  flowButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const step = parseInt(btn.dataset.step);
+      const type = btn.dataset.type; // 'hard' or 'soft'
+      handleFlowButtonClick(step, type);
+    });
+  });
+}
+
+function handleFlowButtonClick(step, type) {
+  console.log('[Popup] Flow button clicked:', step, 'Type:', type);
+
+  // Update current step
+  state.currentFlowStep = step;
+
+  // Increment click count for this step
+  state.flowClickCounts[step] = (state.flowClickCounts[step] || 0) + 1;
+
+  saveState();
+  updateFlowButtonStates();
+
+  if (type === 'hard') {
+    // Hard button: send immediately
+    const command = prepareCommand(step);
+    if (command) {
+      sendCommandToGemini(command, true);
+    }
+  } else {
+    // Soft button: open editor
+    openCommandEditor(step);
+  }
+}
+
+function prepareCommand(step) {
+  const numParts = state.numParts || 9;
+
+  // For dynamic part steps (step > 8 and step <= 8 + numParts)
+  if (step > 8 && step <= 8 + numParts) {
+    const partNum = step - 8;
+    return generatePartCommand(partNum);
+  }
+
+  // For steps beyond dynamic parts (final check)
+  if (step === 8 + numParts + 1) {
+    return FLOW_COMMANDS[18]; // Final check command
+  }
+
+  let command = FLOW_COMMANDS[step];
+  if (!command) {
+    showToast('Không tìm thấy lệnh cho bước này', 'error');
+    return null;
+  }
+
+  // Replace placeholders with state values or defaults
+  command = command.replace('{TITLE}', state.title || '[TIÊU ĐỀ]');
+  command = command.replace('{TOTAL}', (state.totalTarget || 5000).toString());
+
+  // Use uploaded sample content if available
+  const sampleContent = state.sampleContent || '[DÁN NỘI DUNG BÀI MẪU VÀO ĐÂY]';
+  command = command.replace('{SAMPLE_CONTENT}', sampleContent);
+
+  command = command.replace('{DOCTOR_NAME}', '[TÊN BÁC SĨ]');
+  command = command.replace('{SEASON}', 'mùa đông');
+
+  // Update outline command to use dynamic numParts
+  command = command.replace(/outline 9 phần/gi, `outline ${numParts} phần`);
+  command = command.replace(/9 phần/gi, `${numParts} phần`);
+
+  // Replace word count placeholders
+  for (let i = 1; i <= numParts; i++) {
+    const key = `WORDS_P${i}`;
+    const count = wordCounts[`P${i}`] || Math.round((state.totalTarget || 5000) / numParts);
+    command = command.replace(`{${key}}`, count.toString());
+  }
+
+  return command;
+}
+
+function generatePartCommand(partNum) {
+  const numParts = state.numParts || 9;
+  const words = wordCounts[`P${partNum}`] || Math.round((state.totalTarget || 5000) / numParts);
+
+  if (partNum === 1) {
+    return `Viết phần 1 bám sát tài liệu bài viết mẫu bên trên. Viết đủ ${words} từ có mở đầu tương tự bài viết mẫu bên trên. Nội dung được viết bằng tiếng Hàn, xưng hô "tôi" (저/제) và gọi khán giả là "bạn/các bạn" (여러분), phù hợp với văn hóa Hàn Quốc và các quy định của YouTube. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm`;
+  } else if (partNum === numParts) {
+    return `Viết phần ${partNum} Kết thúc Part ${partNum} thật trọn vẹn theo đúng outline (đóng vòng cung đầy đủ, đưa ra lời khuyên cuối cùng để câu chuyện khép lại xúc động) bám sát tài liệu bài viết mẫu bên trên đủ ${words} từ không bao gồm dấu cách. Không viết trên canvas. Tiếp nối phần ${partNum - 1}, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm`;
+  } else {
+    return `Viết phần ${partNum} bám sát tài liệu bài viết mẫu bên trên, viết đủ ${words} từ. Không viết trên canvas. Tiếp nối phần ${partNum - 1}, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm`;
+  }
+}
+
+function openCommandEditor(step) {
+  currentEditingStep = step;
+
+  // Prepare command with placeholders replaced
+  const command = prepareCommand(step);
+
+  // Update editor UI
+  if (elements.editorStepLabel) {
+    elements.editorStepLabel.textContent = `Bước ${step}: ${STEP_LABELS[step] || ''}`;
+  }
+  if (elements.commandEditor) {
+    elements.commandEditor.value = command || '';
+    elements.commandEditor.focus();
+  }
+
+  // Show editor card
+  if (elements.commandEditorCard) {
+    elements.commandEditorCard.style.display = 'block';
+  }
+
+  // Mark current button as editing
+  document.querySelectorAll('.flow-btn').forEach(btn => {
+    btn.classList.remove('editing');
+    if (parseInt(btn.dataset.step) === step) {
+      btn.classList.add('editing');
+    }
+  });
+
+  // Scroll to editor
+  elements.commandEditorCard?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function closeCommandEditor() {
+  currentEditingStep = -1;
+
+  if (elements.commandEditorCard) {
+    elements.commandEditorCard.style.display = 'none';
+  }
+
+  // Remove editing state from buttons
+  document.querySelectorAll('.flow-btn').forEach(btn => {
+    btn.classList.remove('editing');
+  });
+}
+
+function resetCurrentCommand() {
+  if (currentEditingStep >= 0 && elements.commandEditor) {
+    const command = prepareCommand(currentEditingStep);
+    elements.commandEditor.value = command || '';
+    showToast('Đã reset lệnh về mặc định', 'info');
+  }
+}
+
+function sendEditorCommand() {
+  if (!elements.commandEditor || !elements.commandEditor.value.trim()) {
+    showToast('Vui lòng nhập lệnh!', 'warning');
+    return;
+  }
+
+  const command = elements.commandEditor.value.trim();
+  sendCommandToGemini(command, true);
+
+  // Close editor after sending
+  closeCommandEditor();
+}
+
+function markFlowStepDone(step) {
+  state.flowSteps[step] = 'done';
+  saveState();
+  updateFlowButtonStates();
+  updateFlowStatus();
+}
+
+function updateFlowButtonStates() {
+  const flowButtons = document.querySelectorAll('.flow-btn');
+  flowButtons.forEach(btn => {
+    const step = parseInt(btn.dataset.step);
+    const clickCount = state.flowClickCounts[step] || 0;
+
+    // Remove state classes (except editing)
+    btn.classList.remove('active', 'done', 'used');
+
+    // Add 'used' class if clicked at least once
+    if (clickCount > 0) {
+      btn.classList.add('used');
+    }
+
+    // Add appropriate class
+    if (state.flowSteps[step] === 'done') {
+      btn.classList.add('done');
+    } else if (step === state.currentFlowStep && currentEditingStep !== step) {
+      btn.classList.add('active');
+    }
+
+    // Add/update click count badge
+    let badge = btn.querySelector('.click-count');
+    if (clickCount > 1) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'click-count';
+        btn.appendChild(badge);
+      }
+      badge.textContent = clickCount;
+    } else if (badge) {
+      badge.remove();
+    }
+  });
+}
+
+function updateFlowStatus() {
+  const doneCount = Object.keys(state.flowSteps).filter(k => state.flowSteps[k] === 'done').length;
+  if (elements.flowStatus) {
+    elements.flowStatus.textContent = `Bước ${doneCount}/18`;
+  }
+}
+
+// ========================================
 // Message Listener (from content script)
 // ========================================
+// Track last processed capture to avoid duplicates
+let lastProcessedCaptureTime = 0;
+
 function setupMessageListener() {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'TEXT_CAPTURED') {
+      // Clear storage immediately to prevent double processing
+      chrome.storage.local.remove(['lastCapturedText', 'lastCapturedTime', 'lastCapturedWordCount']);
+
+      // Mark as processed
+      lastProcessedCaptureTime = Date.now();
+
       handleTextCaptured(message.text);
       sendResponse({ success: true });
     }
     return true;
   });
 
-  // Also check for stored captured text (if popup was closed)
-  chrome.storage.local.get(['lastCapturedText', 'lastCapturedTime'], (data) => {
-    if (data.lastCapturedText && data.lastCapturedTime) {
-      const timeDiff = Date.now() - data.lastCapturedTime;
-      // If captured within last 30 seconds, show it
-      if (timeDiff < 30000) {
-        handleTextCaptured(data.lastCapturedText);
-        // Clear it
-        chrome.storage.local.remove(['lastCapturedText', 'lastCapturedTime']);
+  // Also check for stored captured text (if popup was closed when capture happened)
+  // Wait a bit to let message listener process first
+  setTimeout(() => {
+    chrome.storage.local.get(['lastCapturedText', 'lastCapturedTime', 'lastCapturedWordCount'], (data) => {
+      if (data.lastCapturedText && data.lastCapturedTime) {
+        const timeDiff = Date.now() - data.lastCapturedTime;
+        const processedRecently = (Date.now() - lastProcessedCaptureTime) < 2000;
+
+        // If captured within last 60 seconds AND not already processed via message
+        if (timeDiff < 60000 && !processedRecently) {
+          console.log('[Popup] Found stored capture from', timeDiff, 'ms ago:', data.lastCapturedWordCount, 'words');
+          handleTextCaptured(data.lastCapturedText);
+        }
+        // Always clear stored capture data after checking
+        chrome.storage.local.remove(['lastCapturedText', 'lastCapturedTime', 'lastCapturedWordCount']);
       }
-    }
-  });
+    });
+  }, 500);
 }
 
 // ========================================
@@ -228,126 +1124,54 @@ function handleTotalTargetChange(e) {
   renderProgress();
 }
 
+// Legacy function - kept for compatibility but no longer used
 function handleParseCommands() {
-  const mainInput = elements.commandInput.value.trim();
-  const customInput = elements.customCommandInput ? elements.customCommandInput.value.trim() : '';
-
-  if (!mainInput && !customInput) {
-    showToast('Vui lòng nhập ít nhất 1 lệnh!', 'warning');
-    return;
-  }
-
-  // Sync totalTarget from input field before parsing
-  const targetValue = parseInt(elements.totalTargetInput.value) || 0;
-  if (targetValue > 0) {
-    state.totalTarget = targetValue;
-  }
-
-  // Parse main commands
-  const mainLines = mainInput ? mainInput.split('\n').filter(line => line.trim()) : [];
-  // Parse custom commands (marked as custom)
-  const customLines = customInput ? customInput.split('\n').filter(line => line.trim()) : [];
-
-  // Create main commands
-  const mainCommands = mainLines.map((line, index) => {
-    // Extract part number (e.g., "1", "2", "3.1", "3.2")
-    const partMatch = line.match(/phần\s*([\d.]+)/i) || line.match(/part\s*([\d.]+)/i);
-    const partNum = partMatch ? partMatch[1] : String(index + 1);
-
-    // Extract word count from command (e.g., "800 từ" or "800 words")
-    const wordMatch = line.match(/(\d+)\s*(từ|words?|단어)/i);
-    const targetWords = wordMatch ? parseInt(wordMatch[1]) : 500;
-
-    return {
-      id: partNum,
-      text: line.trim(),
-      targetWords: targetWords,
-      actualWords: 0,
-      status: 'pending',
-      content: '',
-      isCustom: false // Main command
-    };
-  });
-
-  // Create custom commands (separate, with different styling)
-  const customCommands = customLines.map((line, index) => {
-    const wordMatch = line.match(/(\d+)\s*(từ|words?|단어)/i);
-    const targetWords = wordMatch ? parseInt(wordMatch[1]) : 200;
-
-    return {
-      id: `C${index + 1}`, // Custom ID prefix
-      text: line.trim(),
-      targetWords: targetWords,
-      actualWords: 0,
-      status: 'pending',
-      content: '',
-      isCustom: true // Custom command marker
-    };
-  });
-
-  // Combine: main commands first, then custom commands
-  state.commands = [...mainCommands, ...customCommands];
-
-  // Only main commands create parts for tracking
-  state.parts = mainCommands.map(cmd => ({
-    id: cmd.id,
-    name: `Phần ${cmd.id}`,
-    targetWords: cmd.targetWords,
-    actualWords: 0,
-    status: 'pending',
-    content: ''
-  }));
-
-  // Set first command as current
-  if (state.commands.length > 0) {
-    state.currentCommandIndex = 0;
-  }
-
-  saveState();
-  renderAll();
-  showToast(`Đã tạo ${mainCommands.length} lệnh chính + ${customCommands.length} lệnh bổ sung`, 'success');
+  // Now using preset flow buttons instead of manual command input
 }
 
+// Legacy function - kept for compatibility but no longer used
 function handleClearCommands() {
-  // Only clear command inputs and parsed commands, NOT the content data
-  elements.commandInput.value = '';
-  if (elements.customCommandInput) {
-    elements.customCommandInput.value = '';
-  }
-  state.commands = [];
-  state.currentCommandIndex = 0;
-  elements.commandButtonsCard.style.display = 'none';
-  // Keep clipboardCard visible if there's content
-  // Keep state.parts and state.capturedContents intact
-  saveState();
-  showToast('Đã xóa danh sách lệnh', 'info');
+  // Now using preset flow buttons instead of manual command input
 }
 
 // ========================================
 // Command Button Actions
 // ========================================
 function handleCommandClick(index) {
+  console.log('[Popup] ===== COMMAND BUTTON CLICKED =====');
+  console.log('[Popup] Index:', index);
+
   const command = state.commands[index];
-  if (!command) return;
+  if (!command) {
+    console.error('[Popup] Command not found at index:', index);
+    return;
+  }
+
+  console.log('[Popup] Command:', command.text.substring(0, 50));
 
   state.currentCommandIndex = index;
 
   // Update command status
   if (command.status === 'pending') {
     command.status = 'in-progress';
-    state.parts[index].status = 'in-progress';
+    if (state.parts[index]) {
+      state.parts[index].status = 'in-progress';
+    }
   }
 
   saveState();
   renderCommandButtons();
-  renderOutputTable();
+  renderClipboardTable();
 
   // Send command to content script with auto-enter
+  console.log('[Popup] Calling sendCommandToGemini...');
   sendCommandToGemini(command.text, true);
 }
 
 function sendCommandToGemini(text, autoEnter = true) {
-  console.log('[Popup] Sending command via background:', text.substring(0, 50));
+  console.log('[Popup] ========== SENDING COMMAND ==========');
+  console.log('[Popup] Text:', text.substring(0, 50));
+  console.log('[Popup] AutoEnter:', autoEnter);
 
   // Route through background script - it has full access to all windows/tabs
   chrome.runtime.sendMessage({
@@ -355,13 +1179,18 @@ function sendCommandToGemini(text, autoEnter = true) {
     text: text,
     autoEnter: autoEnter
   }, (response) => {
+    console.log('[Popup] Response received:', response);
     if (chrome.runtime.lastError) {
-      console.error('[Popup] Error sending to background:', chrome.runtime.lastError.message);
-      showToast('Lỗi: Không thể gửi lệnh!', 'error');
+      console.error('[Popup] Error:', chrome.runtime.lastError.message);
+      showToast('Lỗi: ' + chrome.runtime.lastError.message, 'error');
     } else if (response && response.success) {
+      console.log('[Popup] Success!');
       showToast('Đã gửi lệnh!', 'success');
     } else if (response && response.error) {
+      console.log('[Popup] Error from background:', response.error);
       showToast(response.error, 'warning');
+    } else {
+      console.log('[Popup] Unknown response');
     }
   });
 }
@@ -376,44 +1205,48 @@ function handleTextCaptured(text) {
   capturedText = text;
   capturedWordCount = countWords(text);
 
-  const currentCommand = state.commands[state.currentCommandIndex];
-  if (!currentCommand) {
-    // No command selected, show toast with word count
-    showToast(`Đã capture ${capturedWordCount} từ (chưa chọn phần)`, 'info');
-    return;
+  // Use currentContentPart (the selected part in content clipboard)
+  const partNum = currentContentPart;
+  const targetWords = wordCounts[`P${partNum}`] || 0;
+
+  // Append to existing content
+  const existingContent = state.capturedContents[partNum] || '';
+  const newContent = existingContent + (existingContent ? '\n\n' : '') + text;
+  state.capturedContents[partNum] = newContent;
+
+  // Update the content editor textarea if visible
+  if (elements.contentEditorTextarea) {
+    elements.contentEditorTextarea.value = newContent;
   }
 
-  // Update modal with captured text
-  elements.modalPartLabel.textContent = `Phần ${currentCommand.id}`;
-  elements.modalCapturedContent.textContent = text;
-  elements.capturedWords.textContent = capturedWordCount;
-  elements.targetWords.textContent = currentCommand.targetWords;
+  // Calculate new word count for this part
+  const newWordCount = countWords(newContent);
+  const diff = newWordCount - targetWords;
 
-  const diff = capturedWordCount - currentCommand.targetWords;
-  const diffPercent = ((diff / currentCommand.targetWords) * 100).toFixed(1);
-
-  if (diff >= 0) {
-    elements.captureDiff.textContent = `+${diff} từ (+${diffPercent}%)`;
-    elements.captureDiff.className = 'capture-diff positive';
-  } else {
-    elements.captureDiff.textContent = `${diff} từ (${diffPercent}%)`;
-    elements.captureDiff.className = 'capture-diff negative';
+  // Update editor display
+  if (elements.editorWords) {
+    elements.editorWords.textContent = newWordCount;
+  }
+  if (elements.editorDiff) {
+    elements.editorDiff.textContent = diff >= 0 ? `+${diff}` : `${diff}`;
+    elements.editorDiff.className = `editor-diff ${diff >= 0 ? 'positive' : 'negative'}`;
+    elements.editorDiff.style.display = '';
   }
 
-  // Progress bar for this part
-  const partProgress = Math.min((capturedWordCount / currentCommand.targetWords) * 100, 100);
-  elements.captureProgressBar.style.width = `${partProgress}%`;
+  // Update part tab indicator
+  const tab = elements.partTabs?.querySelector(`[data-part="${partNum}"]`);
+  if (tab) {
+    tab.classList.add('has-content');
+  }
 
-  // Total stats
-  const currentTotal = calculateTotalWritten() + capturedWordCount - (currentCommand.actualWords || 0);
-  elements.modalTotalWritten.textContent = currentTotal;
-  elements.modalTotalTarget.textContent = state.totalTarget;
+  // Update progress
+  renderProgress();
 
-  const totalProgress = state.totalTarget > 0 ? Math.min((currentTotal / state.totalTarget) * 100, 100) : 0;
-  elements.modalTotalProgressBar.style.width = `${totalProgress}%`;
+  // Save state
+  saveState();
 
-  // Show modal
-  openModal();
+  // Show toast
+  showToast(`Đã capture ${capturedWordCount} từ vào Phần ${partNum}!`, 'success');
 }
 
 // ========================================
@@ -476,26 +1309,31 @@ function handleActionRewrite() {
 }
 
 function handleActionDone() {
+  // Mark current flow step as done
+  markFlowStepDone(state.currentFlowStep);
+
   const currentCommand = state.commands[state.currentCommandIndex];
-  if (!currentCommand) return;
+  if (currentCommand) {
+    // Save captured content
+    const existingContent = state.capturedContents[currentCommand.id] || '';
+    state.capturedContents[currentCommand.id] = existingContent + (existingContent ? '\n\n' : '') + capturedText;
 
-  // Save captured content
-  const existingContent = state.capturedContents[currentCommand.id] || '';
-  state.capturedContents[currentCommand.id] = existingContent + (existingContent ? '\n\n' : '') + capturedText;
+    // Mark as done
+    currentCommand.actualWords = (currentCommand.actualWords || 0) + capturedWordCount;
+    currentCommand.status = 'done';
+    currentCommand.content = state.capturedContents[currentCommand.id];
 
-  // Mark as done
-  currentCommand.actualWords = (currentCommand.actualWords || 0) + capturedWordCount;
-  currentCommand.status = 'done';
-  currentCommand.content = state.capturedContents[currentCommand.id];
+    if (state.parts[state.currentCommandIndex]) {
+      state.parts[state.currentCommandIndex].actualWords = currentCommand.actualWords;
+      state.parts[state.currentCommandIndex].status = 'done';
+      state.parts[state.currentCommandIndex].content = state.capturedContents[currentCommand.id];
+    }
 
-  state.parts[state.currentCommandIndex].actualWords = currentCommand.actualWords;
-  state.parts[state.currentCommandIndex].status = 'done';
-  state.parts[state.currentCommandIndex].content = state.capturedContents[currentCommand.id];
-
-  // Move to next command
-  const nextPendingIndex = state.commands.findIndex((cmd, i) => i > state.currentCommandIndex && cmd.status !== 'done');
-  if (nextPendingIndex !== -1) {
-    state.currentCommandIndex = nextPendingIndex;
+    // Move to next command
+    const nextPendingIndex = state.commands.findIndex((cmd, i) => i > state.currentCommandIndex && cmd.status !== 'done');
+    if (nextPendingIndex !== -1) {
+      state.currentCommandIndex = nextPendingIndex;
+    }
   }
 
   saveState();
@@ -503,7 +1341,7 @@ function handleActionDone() {
   renderAll();
 
   // Show success toast
-  showToast(`Phần ${currentCommand.id}: ${capturedWordCount} từ - Hoàn thành!`, 'success');
+  showToast(`Bước ${state.currentFlowStep}: ${capturedWordCount} từ - Hoàn thành!`, 'success');
 }
 
 // ========================================
@@ -632,11 +1470,16 @@ function updateHotkeyDisplay() {
   if (alt) keys.push('Alt');
   keys.push(key);
 
-  // Update inline hotkey display
+  // Update inline hotkey display (supports both old and new class names)
   if (elements.hotkeyDisplay) {
+    // Check if using mini version
+    const isMini = elements.hotkeyDisplay.classList.contains('hotkey-mini');
+    const keyClass = isMini ? 'hotkey-key-mini' : 'hotkey-key';
+    const plusClass = isMini ? 'hotkey-plus-mini' : 'hotkey-plus';
+
     elements.hotkeyDisplay.innerHTML = keys.map((k, i) => {
-      const html = `<span class="hotkey-key">${k}</span>`;
-      return i < keys.length - 1 ? html + '<span class="hotkey-plus">+</span>' : html;
+      const html = `<span class="${keyClass}">${k}</span>`;
+      return i < keys.length - 1 ? html + `<span class="${plusClass}">+</span>` : html;
     }).join('');
   }
 
@@ -675,7 +1518,23 @@ function countWords(text) {
 }
 
 function calculateTotalWritten() {
-  return state.parts.reduce((sum, part) => sum + (part.actualWords || 0), 0);
+  // Calculate from capturedContents which is the primary source now
+  let total = 0;
+  const numParts = state.numParts || 9;
+
+  for (let i = 1; i <= numParts; i++) {
+    const content = state.capturedContents[i] || '';
+    if (content) {
+      total += countWords(content);
+    }
+  }
+
+  // Also add from legacy state.parts if capturedContents is empty
+  if (total === 0 && state.parts && state.parts.length > 0) {
+    total = state.parts.reduce((sum, part) => sum + (part.actualWords || 0), 0);
+  }
+
+  return total;
 }
 
 // ========================================
@@ -683,10 +1542,25 @@ function calculateTotalWritten() {
 // ========================================
 function handleCopyAll() {
   // Copy only pure content, no headers or metadata
-  const allContent = state.parts
-    .filter(p => p.content)
-    .map(p => p.content.trim())
-    .join('\n\n');
+  const numParts = state.numParts || 9;
+  let allContent = '';
+
+  // First try capturedContents (new format)
+  for (let i = 1; i <= numParts; i++) {
+    const content = state.capturedContents[i];
+    if (content && content.trim()) {
+      if (allContent) allContent += '\n\n';
+      allContent += content.trim();
+    }
+  }
+
+  // Fallback to legacy state.parts
+  if (!allContent && state.parts && state.parts.length > 0) {
+    allContent = state.parts
+      .filter(p => p.content)
+      .map(p => p.content.trim())
+      .join('\n\n');
+  }
 
   if (!allContent) {
     showToast('Chưa có nội dung để sao chép!', 'warning');
@@ -702,17 +1576,30 @@ function handleCopyAll() {
 
 function handleExportData() {
   // Export as plain text - only pure content, no headers or metadata
-  const partsWithContent = state.parts.filter(p => p.content);
+  const numParts = state.numParts || 9;
+  let textContent = '';
 
-  if (partsWithContent.length === 0) {
+  // First try capturedContents (new format)
+  for (let i = 1; i <= numParts; i++) {
+    const content = state.capturedContents[i];
+    if (content && content.trim()) {
+      if (textContent) textContent += '\n\n';
+      textContent += content.trim();
+    }
+  }
+
+  // Fallback to legacy state.parts
+  if (!textContent && state.parts && state.parts.length > 0) {
+    const partsWithContent = state.parts.filter(p => p.content);
+    textContent = partsWithContent
+      .map(part => part.content.trim())
+      .join('\n\n');
+  }
+
+  if (!textContent) {
     showToast('Chưa có nội dung để xuất!', 'warning');
     return;
   }
-
-  // Build text content - only the actual content from each part
-  const textContent = partsWithContent
-    .map(part => part.content.trim())
-    .join('\n\n');
 
   const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -739,9 +1626,106 @@ function handleResetAll() {
 // ========================================
 function renderAll() {
   renderProgress();
-  renderCommandButtons();
+  renderPartButtons(); // Render dynamic part buttons
+  updateFlowButtonStates();
+  updateFlowStatus();
+  updateWordsSummaryBar();
+  updateStageProgress();
   renderClipboardTable();
   updateHotkeyDisplay();
+  updateFileDisplay(); // Update file display if there's a file
+  renderContentClipboard(); // Render content clipboard section
+}
+
+function updateFileDisplay() {
+  if (state.sampleFileName && elements.fileName) {
+    elements.fileName.textContent = state.sampleFileName.length > 25
+      ? state.sampleFileName.substring(0, 22) + '...'
+      : state.sampleFileName;
+    elements.fileName.classList.add('has-file');
+    elements.fileName.title = state.sampleFileName;
+    if (elements.clearFileBtn) elements.clearFileBtn.style.display = 'flex';
+  }
+}
+
+function updateStageProgress() {
+  const numParts = state.numParts || 9;
+
+  // Stage 1: Steps 0-5 (6 steps)
+  const stage1Steps = [0, 1, 2, 3, 4, 5];
+  const stage1Done = stage1Steps.filter(s => state.flowSteps[s] === 'done').length;
+  const stage1El = document.getElementById('stage1Progress');
+  const stage1Status = document.getElementById('stage1Status');
+  if (stage1El) stage1El.textContent = `${stage1Done}/6`;
+  if (stage1Status) {
+    stage1Status.classList.remove('done', 'in-progress');
+    if (stage1Done === 6) {
+      stage1Status.textContent = '✓';
+      stage1Status.classList.add('done');
+      document.getElementById('stage1Accordion')?.classList.add('completed');
+    } else if (stage1Done > 0) {
+      stage1Status.textContent = '◐';
+      stage1Status.classList.add('in-progress');
+    } else {
+      stage1Status.textContent = '○';
+    }
+  }
+
+  // Stage 2: Steps 6-8 (3 steps)
+  const stage2Steps = [6, 7, 8];
+  const stage2Done = stage2Steps.filter(s => state.flowSteps[s] === 'done').length;
+  const stage2El = document.getElementById('stage2Progress');
+  const stage2Status = document.getElementById('stage2Status');
+  if (stage2El) stage2El.textContent = `${stage2Done}/3`;
+  if (stage2Status) {
+    stage2Status.classList.remove('done', 'in-progress');
+    if (stage2Done === 3) {
+      stage2Status.textContent = '✓';
+      stage2Status.classList.add('done');
+      document.getElementById('stage2Accordion')?.classList.add('completed');
+    } else if (stage2Done > 0) {
+      stage2Status.textContent = '◐';
+      stage2Status.classList.add('in-progress');
+    } else {
+      stage2Status.textContent = '○';
+    }
+  }
+
+  // Stage 3: Dynamic parts (steps 9 to 8+numParts)
+  const stage3Done = countPartsDone();
+  const stage3El = document.getElementById('stage3Progress');
+  const stage3Status = document.getElementById('stage3Status');
+  if (stage3El) stage3El.textContent = `${stage3Done}/${numParts}`;
+  if (stage3Status) {
+    stage3Status.classList.remove('done', 'in-progress');
+    if (stage3Done === numParts) {
+      stage3Status.textContent = '✓';
+      stage3Status.classList.add('done');
+      document.getElementById('stage3Accordion')?.classList.add('completed');
+    } else if (stage3Done > 0) {
+      stage3Status.textContent = '◐';
+      stage3Status.classList.add('in-progress');
+    } else {
+      stage3Status.textContent = '○';
+    }
+  }
+
+  // Stage 4: Final check (step 8+numParts+1)
+  const finalStep = 8 + numParts + 1;
+  const stage4Done = state.flowSteps[finalStep] === 'done' ? 1 : 0;
+  const stage4El = document.getElementById('stage4Progress');
+  const stage4Status = document.getElementById('stage4Status');
+  if (stage4El) stage4El.textContent = `${stage4Done}/1`;
+  if (stage4Status) {
+    stage4Status.classList.remove('done', 'in-progress');
+    if (stage4Done === 1) {
+      stage4Status.textContent = '✓';
+      stage4Status.classList.add('done');
+      document.getElementById('stage4Accordion')?.classList.add('completed');
+    } else {
+      stage4Status.textContent = '○';
+    }
+  }
 }
 
 function renderProgress() {
@@ -756,44 +1740,8 @@ function renderProgress() {
 }
 
 function renderCommandButtons() {
-  if (state.commands.length === 0) {
-    elements.commandButtonsCard.style.display = 'none';
-    return;
-  }
-
-  elements.commandButtonsCard.style.display = 'block';
-
-  // Separate main and custom commands
-  const mainCommands = state.commands.filter(cmd => !cmd.isCustom);
-  const customCommands = state.commands.filter(cmd => cmd.isCustom);
-
-  elements.parsedCount.textContent = `${mainCommands.length} chính + ${customCommands.length} bổ sung`;
-
-  // Render main commands
-  const mainButtonsHTML = mainCommands.map((cmd, i) => {
-    const index = state.commands.indexOf(cmd);
-    return renderCommandButton(cmd, index);
-  }).join('');
-
-  // Render custom commands (with separator if exists)
-  const customButtonsHTML = customCommands.length > 0 ? `
-    <div class="cmd-separator">
-      <span class="cmd-separator-text">✨ Bổ sung</span>
-    </div>
-    ${customCommands.map((cmd, i) => {
-      const index = state.commands.indexOf(cmd);
-      return renderCommandButton(cmd, index, true);
-    }).join('')}
-  ` : '';
-
-  elements.commandButtons.innerHTML = mainButtonsHTML + customButtonsHTML;
-
-  // Add click listeners
-  elements.commandButtons.querySelectorAll('.cmd-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      handleCommandClick(parseInt(btn.dataset.index));
-    });
-  });
+  // Legacy function - now using flow buttons instead
+  // Keep for compatibility with existing code
 }
 
 // Helper function to render a single command button
@@ -1017,6 +1965,120 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// ========================================
+// Content Clipboard Section
+// ========================================
+function renderContentClipboard() {
+  if (!elements.partTabs || !elements.contentEditorTextarea) return;
+
+  const numParts = state.numParts || 9;
+
+  // Render part tabs
+  let tabsHtml = '';
+  for (let i = 1; i <= numParts; i++) {
+    const content = state.capturedContents[i] || '';
+    const hasContent = content.length > 0;
+    const isActive = i === currentContentPart;
+
+    tabsHtml += `
+      <button class="part-tab ${isActive ? 'active' : ''} ${hasContent ? 'has-content' : ''}"
+              data-part="${i}">
+        P${i}
+      </button>
+    `;
+  }
+  elements.partTabs.innerHTML = tabsHtml;
+
+  // Attach tab click listeners
+  elements.partTabs.querySelectorAll('.part-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const part = parseInt(tab.dataset.part);
+      if (part !== currentContentPart) {
+        // Save current content first
+        saveCurrentContentPart();
+        // Switch to new part
+        currentContentPart = part;
+        renderContentClipboard();
+      }
+    });
+  });
+
+  // Update editor content
+  const content = state.capturedContents[currentContentPart] || '';
+  const wordCount = countWords(content);
+  const targetWords = wordCounts[`P${currentContentPart}`] || 0;
+  const diff = wordCount - targetWords;
+
+  elements.editorPartLabel.textContent = `Phần ${currentContentPart}`;
+  elements.editorWords.textContent = wordCount;
+  elements.editorTarget.textContent = targetWords;
+  elements.contentEditorTextarea.value = content;
+
+  // Update diff display
+  if (content.length > 0) {
+    elements.editorDiff.textContent = diff >= 0 ? `+${diff}` : `${diff}`;
+    elements.editorDiff.className = `editor-diff ${diff >= 0 ? 'positive' : 'negative'}`;
+    elements.editorDiff.style.display = '';
+  } else {
+    elements.editorDiff.style.display = 'none';
+  }
+}
+
+function saveCurrentContentPart() {
+  if (!elements.contentEditorTextarea) return;
+
+  const content = elements.contentEditorTextarea.value;
+  state.capturedContents[currentContentPart] = content;
+  saveState();
+}
+
+// Debounced auto-save for content editor
+let contentSaveTimer = null;
+
+function setupContentEditorListeners() {
+  if (!elements.contentEditorTextarea) return;
+
+  elements.contentEditorTextarea.addEventListener('input', () => {
+    // Update live word count
+    const content = elements.contentEditorTextarea.value;
+    const wordCount = countWords(content);
+    const targetWords = wordCounts[`P${currentContentPart}`] || 0;
+    const diff = wordCount - targetWords;
+
+    elements.editorWords.textContent = wordCount;
+
+    if (content.length > 0) {
+      elements.editorDiff.textContent = diff >= 0 ? `+${diff}` : `${diff}`;
+      elements.editorDiff.className = `editor-diff ${diff >= 0 ? 'positive' : 'negative'}`;
+      elements.editorDiff.style.display = '';
+    } else {
+      elements.editorDiff.style.display = 'none';
+    }
+
+    // Debounced save
+    if (contentSaveTimer) {
+      clearTimeout(contentSaveTimer);
+    }
+    contentSaveTimer = setTimeout(() => {
+      state.capturedContents[currentContentPart] = content;
+
+      // Update part tabs to show has-content indicator
+      const tab = elements.partTabs.querySelector(`[data-part="${currentContentPart}"]`);
+      if (tab) {
+        if (content.length > 0) {
+          tab.classList.add('has-content');
+        } else {
+          tab.classList.remove('has-content');
+        }
+      }
+
+      // Update total progress
+      renderProgress();
+      saveState();
+    }, 500);
+  });
+}
+
 // renderSettings removed - simplified UI
 
 // ========================================
@@ -1025,45 +2087,272 @@ function escapeHtml(text) {
 function saveState() {
   chrome.storage.local.set({
     totalTarget: state.totalTarget,
+    numParts: state.numParts,
+    title: state.title,
+    sampleContent: state.sampleContent,
+    sampleFileName: state.sampleFileName,
+    currentFlowStep: state.currentFlowStep,
+    flowSteps: state.flowSteps,
+    flowClickCounts: state.flowClickCounts,
     commands: state.commands,
     currentCommandIndex: state.currentCommandIndex,
     parts: state.parts,
     capturedContents: state.capturedContents,
-    settings: state.settings
+    settings: state.settings,
+    wordCounts: wordCounts,
+    currentContentPart: currentContentPart
   });
 }
 
 function loadState() {
   chrome.storage.local.get([
     'totalTarget',
+    'numParts',
+    'title',
+    'sampleContent',
+    'sampleFileName',
+    'currentFlowStep',
+    'flowSteps',
+    'flowClickCounts',
     'commands',
     'currentCommandIndex',
     'parts',
     'capturedContents',
-    'settings'
+    'settings',
+    'wordCounts',
+    'currentContentPart'
   ], (data) => {
     if (data.totalTarget !== undefined) state.totalTarget = data.totalTarget;
+    if (data.numParts !== undefined) state.numParts = data.numParts;
+    if (data.title !== undefined) state.title = data.title;
+    if (data.sampleContent !== undefined) state.sampleContent = data.sampleContent;
+    if (data.sampleFileName !== undefined) state.sampleFileName = data.sampleFileName;
+    if (data.currentFlowStep !== undefined) state.currentFlowStep = data.currentFlowStep;
+    if (data.flowSteps) state.flowSteps = data.flowSteps;
+    if (data.flowClickCounts) state.flowClickCounts = data.flowClickCounts;
     if (data.commands) state.commands = data.commands;
     if (data.currentCommandIndex !== undefined) state.currentCommandIndex = data.currentCommandIndex;
     if (data.parts) state.parts = data.parts;
     if (data.capturedContents) state.capturedContents = data.capturedContents;
     if (data.settings) state.settings = { ...state.settings, ...data.settings };
+    if (data.wordCounts) wordCounts = data.wordCounts;
+    if (data.currentContentPart) currentContentPart = data.currentContentPart;
 
     // Update form values from state
-    elements.totalTargetInput.value = state.totalTarget || '';
+    elements.totalTargetInput.value = state.totalTarget || 5000;
+    if (elements.numPartsInput) elements.numPartsInput.value = state.numParts || 9;
+    if (elements.titleInput) elements.titleInput.value = state.title || '';
 
-    // Restore command input if commands exist
-    if (state.commands.length > 0) {
-      elements.commandInput.value = state.commands.map(cmd => cmd.text).join('\n');
-    }
+    // Ensure default values
+    if (!state.totalTarget) state.totalTarget = 5000;
+    if (!state.numParts) state.numParts = 9;
 
-    // Sync input value to state if user already entered value before load
-    const inputValue = parseInt(elements.totalTargetInput.value) || 0;
-    if (inputValue > 0 && state.totalTarget === 0) {
-      state.totalTarget = inputValue;
-      saveState();
+    // If wordCounts is empty or doesn't match numParts, recalculate
+    const wordCountKeys = Object.keys(wordCounts).length;
+    if (wordCountKeys === 0 || wordCountKeys !== state.numParts) {
+      recalculateWordCounts();
     }
 
     renderAll();
   });
+}
+
+// ========================================
+// Full Screen Editor
+// ========================================
+let fsCurrentPart = 1;
+let fsSaveTimer = null;
+
+function openFullscreenEditor() {
+  // Save current content first
+  saveCurrentContentPart();
+
+  // Set current part in fullscreen editor
+  fsCurrentPart = currentContentPart;
+
+  // Render fullscreen editor
+  renderFullscreenEditor();
+
+  // Show modal
+  elements.fullscreenEditorModal.classList.add('active');
+
+  // Setup textarea listener
+  setupFullscreenTextareaListener();
+}
+
+function closeFullscreenEditor() {
+  // Save current fullscreen content
+  saveFullscreenContent();
+
+  // Update main content clipboard to reflect changes
+  renderContentClipboard();
+  renderProgress();
+
+  // Hide modal
+  elements.fullscreenEditorModal.classList.remove('active');
+}
+
+function renderFullscreenEditor() {
+  const numParts = state.numParts || 9;
+
+  // Update total stats in header
+  const totalWritten = calculateTotalWritten();
+  const totalTarget = state.totalTarget || 5000;
+  const percent = totalTarget > 0 ? Math.min((totalWritten / totalTarget) * 100, 100) : 0;
+
+  elements.fsEditorTotalWritten.textContent = totalWritten.toLocaleString();
+  elements.fsEditorTotalTarget.textContent = totalTarget.toLocaleString();
+  elements.fsEditorPercent.textContent = `${percent.toFixed(1)}%`;
+
+  // Render part tabs
+  let tabsHtml = '';
+  for (let i = 1; i <= numParts; i++) {
+    const content = state.capturedContents[i] || '';
+    const wordCount = countWords(content);
+    const targetWords = wordCounts[`P${i}`] || 0;
+    const diff = wordCount - targetWords;
+    const hasContent = content.length > 0;
+    const isActive = i === fsCurrentPart;
+
+    tabsHtml += `
+      <button class="fs-part-tab ${isActive ? 'active' : ''} ${hasContent ? 'has-content' : ''}"
+              data-part="${i}">
+        <span class="fs-tab-label">P${i}</span>
+        <span class="fs-tab-words">${wordCount}/${targetWords}</span>
+        ${hasContent ? `<span class="fs-tab-diff ${diff >= 0 ? 'positive' : 'negative'}">${diff >= 0 ? '+' : ''}${diff}</span>` : ''}
+      </button>
+    `;
+  }
+  elements.fsPartTabs.innerHTML = tabsHtml;
+
+  // Attach tab click listeners
+  elements.fsPartTabs.querySelectorAll('.fs-part-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const part = parseInt(tab.dataset.part);
+      if (part !== fsCurrentPart) {
+        // Save current part first
+        saveFullscreenContent();
+        // Switch to new part
+        fsCurrentPart = part;
+        renderFullscreenEditorContent();
+        updateFullscreenTabs();
+      }
+    });
+  });
+
+  // Render editor content
+  renderFullscreenEditorContent();
+}
+
+function renderFullscreenEditorContent() {
+  const content = state.capturedContents[fsCurrentPart] || '';
+  const wordCount = countWords(content);
+  const targetWords = wordCounts[`P${fsCurrentPart}`] || 0;
+  const diff = wordCount - targetWords;
+
+  elements.fsPartLabel.textContent = `Phần ${fsCurrentPart}`;
+  elements.fsWords.textContent = wordCount;
+  elements.fsTarget.textContent = targetWords;
+  elements.fsTextarea.value = content;
+
+  // Update diff display
+  if (content.length > 0) {
+    elements.fsDiff.textContent = diff >= 0 ? `+${diff}` : `${diff}`;
+    elements.fsDiff.className = `fs-diff ${diff >= 0 ? 'positive' : 'negative'}`;
+    elements.fsDiff.style.display = '';
+  } else {
+    elements.fsDiff.style.display = 'none';
+  }
+
+  // Focus textarea
+  elements.fsTextarea.focus();
+}
+
+function updateFullscreenTabs() {
+  const numParts = state.numParts || 9;
+
+  elements.fsPartTabs.querySelectorAll('.fs-part-tab').forEach(tab => {
+    const part = parseInt(tab.dataset.part);
+    const content = state.capturedContents[part] || '';
+    const wordCount = countWords(content);
+    const targetWords = wordCounts[`P${part}`] || 0;
+    const diff = wordCount - targetWords;
+    const hasContent = content.length > 0;
+    const isActive = part === fsCurrentPart;
+
+    // Update classes
+    tab.classList.toggle('active', isActive);
+    tab.classList.toggle('has-content', hasContent);
+
+    // Update word count
+    const wordsEl = tab.querySelector('.fs-tab-words');
+    if (wordsEl) {
+      wordsEl.textContent = `${wordCount}/${targetWords}`;
+    }
+
+    // Update diff
+    let diffEl = tab.querySelector('.fs-tab-diff');
+    if (hasContent) {
+      if (!diffEl) {
+        diffEl = document.createElement('span');
+        diffEl.className = 'fs-tab-diff';
+        tab.appendChild(diffEl);
+      }
+      diffEl.textContent = `${diff >= 0 ? '+' : ''}${diff}`;
+      diffEl.className = `fs-tab-diff ${diff >= 0 ? 'positive' : 'negative'}`;
+    } else if (diffEl) {
+      diffEl.remove();
+    }
+  });
+
+  // Update total stats
+  const totalWritten = calculateTotalWritten();
+  const totalTarget = state.totalTarget || 5000;
+  const percent = totalTarget > 0 ? Math.min((totalWritten / totalTarget) * 100, 100) : 0;
+
+  elements.fsEditorTotalWritten.textContent = totalWritten.toLocaleString();
+  elements.fsEditorPercent.textContent = `${percent.toFixed(1)}%`;
+}
+
+function setupFullscreenTextareaListener() {
+  if (!elements.fsTextarea) return;
+
+  // Remove existing listener to avoid duplicates
+  elements.fsTextarea.removeEventListener('input', handleFullscreenInput);
+  elements.fsTextarea.addEventListener('input', handleFullscreenInput);
+}
+
+function handleFullscreenInput() {
+  const content = elements.fsTextarea.value;
+  const wordCount = countWords(content);
+  const targetWords = wordCounts[`P${fsCurrentPart}`] || 0;
+  const diff = wordCount - targetWords;
+
+  // Update word stats
+  elements.fsWords.textContent = wordCount;
+
+  if (content.length > 0) {
+    elements.fsDiff.textContent = diff >= 0 ? `+${diff}` : `${diff}`;
+    elements.fsDiff.className = `fs-diff ${diff >= 0 ? 'positive' : 'negative'}`;
+    elements.fsDiff.style.display = '';
+  } else {
+    elements.fsDiff.style.display = 'none';
+  }
+
+  // Debounced save
+  if (fsSaveTimer) {
+    clearTimeout(fsSaveTimer);
+  }
+  fsSaveTimer = setTimeout(() => {
+    saveFullscreenContent();
+    updateFullscreenTabs();
+  }, 300);
+}
+
+function saveFullscreenContent() {
+  if (!elements.fsTextarea) return;
+
+  const content = elements.fsTextarea.value;
+  state.capturedContents[fsCurrentPart] = content;
+  saveState();
 }
