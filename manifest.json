@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Gemini Content Writer Assistant",
+  "name": "YeuTuBe",
   "version": "1.0.0",
   "description": "Hỗ trợ viết content với Gemini - Quản lý commands và word count",
   "permissions": [
