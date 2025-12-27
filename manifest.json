@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "YeuTuBe",
   "version": "1.0.0",
-  "description": "Hỗ trợ viết content với Gemini - Quản lý commands và word count",
+  "description": "YeuTuBe - Hỗ trợ viết content với Gemini",
   "permissions": [
     "activeTab",
     "storage",
