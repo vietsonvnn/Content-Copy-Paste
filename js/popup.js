@@ -960,6 +960,14 @@ function handleFlowButtonClick(step, type) {
   saveState();
   updateFlowButtonStates();
 
+  // Nếu là nút viết phần (P1, P2,...), tự động chuyển tab nội dung tương ứng
+  const startWriteIndex = getStartWriteIndex();
+  const numParts = state.numParts || 9;
+  if (typeof step === 'number' && step >= startWriteIndex && step < startWriteIndex + numParts) {
+    const partNum = step - startWriteIndex + 1;
+    switchToContentPart(partNum);
+  }
+
   if (type === 'hard') {
     // Hard button: send immediately
     const command = prepareCommand(step);
@@ -969,6 +977,18 @@ function handleFlowButtonClick(step, type) {
   } else {
     // Soft button: open editor
     openCommandEditor(step);
+  }
+}
+
+// Hàm chuyển tab nội dung sang phần cụ thể
+function switchToContentPart(partNum) {
+  if (partNum !== currentContentPart && partNum >= 1 && partNum <= state.numParts) {
+    // Save current content first
+    saveCurrentContentPart();
+    // Switch to new part
+    currentContentPart = partNum;
+    renderContentClipboard();
+    console.log('[Popup] Auto-switched to content part:', partNum);
   }
 }
 
