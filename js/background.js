@@ -6,7 +6,7 @@
 // ========================================
 // State
 // ========================================
-let currentHotkey = { ctrl: true, shift: true, alt: false, key: 'C' };
+let currentHotkey = { ctrl: true, shift: false, alt: false, key: ' ' };
 
 // ========================================
 // Initialize
@@ -17,7 +17,7 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     chrome.storage.local.set({
       settings: {
-        hotkey: { ctrl: true, shift: true, alt: false, key: 'C' },
+        hotkey: { ctrl: true, shift: false, alt: false, key: ' ' },
         koreanCountMethod: 'words',
         showToast: true
       }

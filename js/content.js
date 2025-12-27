@@ -9,7 +9,7 @@ console.log('[CW] ====== Content script loading ======');
 // State
 // ========================================
 let settings = {
-  hotkey: { ctrl: true, shift: true, alt: false, key: 'C' },
+  hotkey: { ctrl: true, shift: false, alt: false, key: ' ' },
   showToast: true
 };
 
@@ -58,13 +58,20 @@ document.addEventListener('keydown', (e) => {
   const ctrlMatch = ctrl ? (e.ctrlKey || e.metaKey) : !(e.ctrlKey || e.metaKey);
   const shiftMatch = shift ? e.shiftKey : !e.shiftKey;
   const altMatch = alt ? e.altKey : !e.altKey;
-  const keyMatch = e.key.toUpperCase() === key.toUpperCase();
+
+  // Handle Space key specially (e.key can be ' ' or 'Space')
+  let keyMatch = false;
+  if (key === ' ') {
+    keyMatch = e.key === ' ' || e.code === 'Space';
+  } else {
+    keyMatch = e.key.toUpperCase() === key.toUpperCase();
+  }
 
   // Debug log for hotkey matching
-  if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+  if ((e.ctrlKey || e.metaKey)) {
     console.log('[CW] Hotkey detected:', {
-      pressed: `${e.ctrlKey || e.metaKey ? 'Ctrl+' : ''}${e.shiftKey ? 'Shift+' : ''}${e.altKey ? 'Alt+' : ''}${e.key}`,
-      expected: `${ctrl ? 'Ctrl+' : ''}${shift ? 'Shift+' : ''}${alt ? 'Alt+' : ''}${key}`,
+      pressed: `${e.ctrlKey || e.metaKey ? 'Ctrl+' : ''}${e.shiftKey ? 'Shift+' : ''}${e.altKey ? 'Alt+' : ''}${e.key === ' ' ? 'Space' : e.key}`,
+      expected: `${ctrl ? 'Ctrl+' : ''}${shift ? 'Shift+' : ''}${alt ? 'Alt+' : ''}${key === ' ' ? 'Space' : key}`,
       match: ctrlMatch && shiftMatch && altMatch && keyMatch
     });
   }
