@@ -1612,11 +1612,29 @@ function updateHotkeyDisplay() {
   }
 }
 
-function notifyHotkeyChange() {
+async function notifyHotkeyChange() {
+  // Notify background
   chrome.runtime.sendMessage({
     type: 'HOTKEY_CHANGED',
     hotkey: state.settings.hotkey
   });
+
+  // Notify ALL tabs (hotkey.js runs on all pages)
+  try {
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      if (tab.id) {
+        chrome.tabs.sendMessage(tab.id, {
+          type: 'HOTKEY_CHANGED',
+          hotkey: state.settings.hotkey
+        }).catch(() => {
+          // Tab might not have content script, ignore
+        });
+      }
+    }
+  } catch (e) {
+    console.log('Could not notify tabs:', e);
+  }
 }
 
 // ========================================

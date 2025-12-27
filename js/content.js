@@ -3,22 +3,56 @@
  * Handles injection into Gemini and text capture
  */
 
-console.log('[CW] ====== Content script loading ======');
+console.log('[CW] ====== Content script loading (Gemini only) ======');
 
 // ========================================
-// State
+// Toast for Gemini page
 // ========================================
-let settings = {
-  hotkey: { ctrl: true, shift: true, alt: false, key: 'g' },
-  showToast: true
-};
+function showToast(message, type = 'info') {
+  const existing = document.getElementById('cw-toast');
+  if (existing) existing.remove();
 
-// Load settings
-chrome.storage.local.get(['settings'], (data) => {
-  if (data.settings) {
-    settings = { ...settings, ...data.settings };
-  }
-});
+  const colors = {
+    success: '#34a853',
+    error: '#ea4335',
+    warning: '#fbbc04',
+    info: '#4285f4'
+  };
+
+  const toast = document.createElement('div');
+  toast.id = 'cw-toast';
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 20px;
+    background: ${colors[type] || colors.info};
+    color: ${type === 'warning' ? '#000' : '#fff'};
+    border-radius: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 999999;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+  `;
+  toast.textContent = message;
+
+  document.body.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
+  });
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-10px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
 
 // ========================================
 // Message Listener
@@ -39,64 +73,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.type === 'HOTKEY_CHANGED') {
-    settings.hotkey = message.hotkey;
-    sendResponse({ success: true });
-    return true;
-  }
-
-  if (message.type === 'CAPTURE_TEXT') {
-    console.log('[CW] Capture command received from background');
-    captureSelectedText();
-    sendResponse({ success: true });
-    return true;
-  }
-
   sendResponse({ success: true });
   return true;
 });
-
-// ========================================
-// Keyboard Listener for Custom Hotkey
-// ========================================
-document.addEventListener('keydown', (e) => {
-  const { ctrl, shift, alt, key } = settings.hotkey;
-
-  const ctrlMatch = ctrl ? (e.ctrlKey || e.metaKey) : !(e.ctrlKey || e.metaKey);
-  const shiftMatch = shift ? e.shiftKey : !e.shiftKey;
-  const altMatch = alt ? e.altKey : !e.altKey;
-
-  // Handle Space key specially (e.key can be ' ' or 'Space')
-  // For letter keys with Shift pressed, e.key will be uppercase (e.g., 'G')
-  let keyMatch = false;
-  if (key === ' ') {
-    keyMatch = e.key === ' ' || e.code === 'Space';
-  } else {
-    // Compare case-insensitively for letters
-    keyMatch = e.key.toUpperCase() === key.toUpperCase();
-  }
-
-  // Debug: Log ALL Ctrl combinations to help troubleshoot
-  if (e.ctrlKey || e.metaKey || e.shiftKey) {
-    console.log('[CW] Key event:', {
-      key: e.key,
-      code: e.code,
-      ctrlKey: e.ctrlKey,
-      metaKey: e.metaKey,
-      shiftKey: e.shiftKey,
-      altKey: e.altKey,
-      expected: { ctrl, shift, alt, key },
-      matches: { ctrlMatch, shiftMatch, altMatch, keyMatch }
-    });
-  }
-
-  if (ctrlMatch && shiftMatch && altMatch && keyMatch) {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('[CW] ★★★ Hotkey matched! Capturing text... ★★★');
-    captureSelectedText();
-  }
-}, true); // Use capture phase to catch event before other handlers
 
 // ========================================
 // Find Input Element
@@ -299,92 +278,7 @@ function sendMessage(inputElement) {
   });
   inputElement.dispatchEvent(enterEvent);
 
-  showToast('Nhấn Enter để gửi', 'info');
-}
-
-// ========================================
-// Text Capture
-// ========================================
-function captureSelectedText() {
-  const selection = window.getSelection();
-  const text = selection.toString().trim();
-
-  if (!text) {
-    showToast('Chưa chọn text!', 'warning');
-    return;
-  }
-
-  const wordCount = text.split(/\s+/).filter(w => w).length;
-
-  // Always save to storage first (most reliable)
-  chrome.storage.local.set({
-    lastCapturedText: text,
-    lastCapturedTime: Date.now(),
-    lastCapturedWordCount: wordCount
-  }, () => {
-    console.log('[CW] Captured text saved to storage:', wordCount, 'words');
-
-    // Then try to notify background/popup
-    chrome.runtime.sendMessage({
-      type: 'TEXT_CAPTURED',
-      text: text,
-      wordCount: wordCount
-    }).catch(() => {
-      // Popup might be closed, that's OK - data is in storage
-      console.log('[CW] Popup not open, text saved to storage');
-    });
-
-    showToast(`Captured: ${wordCount} từ`, 'success');
-  });
-}
-
-// ========================================
-// Toast
-// ========================================
-function showToast(message, type = 'info') {
-  const existing = document.getElementById('cw-toast');
-  if (existing) existing.remove();
-
-  const colors = {
-    success: '#34a853',
-    error: '#ea4335',
-    warning: '#fbbc04',
-    info: '#4285f4'
-  };
-
-  const toast = document.createElement('div');
-  toast.id = 'cw-toast';
-  toast.style.cssText = `
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    padding: 12px 20px;
-    background: ${colors[type] || colors.info};
-    color: ${type === 'warning' ? '#000' : '#fff'};
-    border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 14px;
-    font-weight: 500;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    z-index: 999999;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: all 0.3s ease;
-  `;
-  toast.textContent = message;
-
-  document.body.appendChild(toast);
-
-  requestAnimationFrame(() => {
-    toast.style.opacity = '1';
-    toast.style.transform = 'translateY(0)';
-  });
-
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(-10px)';
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
+  console.log('[CW] No send button found, trying Enter key');
 }
 
 // ========================================
