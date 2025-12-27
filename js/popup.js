@@ -45,7 +45,7 @@ const state = {
   parts: [],
   capturedContents: {}, // Store captured content for each part
   settings: {
-    hotkey: { ctrl: true, shift: true, alt: false, key: 'g' },
+    hotkey: { ctrl: true, shift: true, alt: false, key: 'g' }, // always lowercase
     koreanCountMethod: 'words',
     showToast: true
   }
@@ -1537,13 +1537,13 @@ function recordHotkey(e) {
     ctrl: e.ctrlKey || e.metaKey,
     shift: e.shiftKey,
     alt: e.altKey,
-    key: e.key.toUpperCase()
+    key: e.key.toLowerCase()
   };
 
   const isBlocked = blockedCombos.some(combo => {
     return (combo.ctrl === newHotkey.ctrl) &&
            (combo.shift === newHotkey.shift || !combo.shift) &&
-           (combo.key === newHotkey.key);
+           (combo.key.toLowerCase() === newHotkey.key);
   });
 
   if (isBlocked) {
@@ -1577,7 +1577,7 @@ function stopRecording() {
 }
 
 function resetHotkey() {
-  state.settings.hotkey = { ctrl: true, shift: false, alt: false, key: ' ' };
+  state.settings.hotkey = { ctrl: true, shift: true, alt: false, key: 'g' };
   saveState();
   updateHotkeyDisplay();
   notifyHotkeyChange();
