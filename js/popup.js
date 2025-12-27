@@ -2665,22 +2665,24 @@ function renderSetupFlowButtons() {
     const typeClass = config.type === "hard" ? "flow-btn-hard" : "flow-btn-soft";
 
     html += `
-      <button class="flow-btn ${typeClass} ${isUsed ? "used" : ""}" 
+      <button class="flow-btn ${typeClass} ${isUsed ? "used" : ""}"
               data-step="${stepNum}" data-type="${config.type}">
         <span class="flow-btn-num">${stepNum}</span>
         <span class="flow-btn-label">${config.label}</span>
-        ${clickCount > 0 ? `<span class="click-badge">${clickCount}</span>` : ""}
       </button>
     `;
   });
 
   elements.setupFlowButtons.innerHTML = html;
-  
+
   // Update progress
   const completed = Object.keys(flowConfig).filter(s => state.flowClickCounts[parseInt(s)] > 0).length;
   if (elements.stage1Progress) {
     elements.stage1Progress.textContent = `${completed}/${numSetupSteps}`;
   }
+
+  // Re-attach event listeners for new buttons
+  setupFlowButtonListeners();
 }
 
 function renderPartFlowButtons() {
@@ -2699,13 +2701,12 @@ function renderPartFlowButtons() {
               data-step="${step}" data-type="soft" data-part="${i}">
         <span class="flow-btn-num">P${i}</span>
         <span class="flow-btn-label">${wordCounts["P" + i] || 0}</span>
-        ${clickCount > 0 ? `<span class="click-badge">${clickCount}</span>` : ""}
       </button>
     `;
   }
 
   elements.partButtonsContainer.innerHTML = html;
-  
+
   // Update progress
   let completed = 0;
   for (let i = 1; i <= state.numParts; i++) {
@@ -2715,6 +2716,9 @@ function renderPartFlowButtons() {
   if (elements.stage2Progress) {
     elements.stage2Progress.textContent = `${completed}/${state.numParts}`;
   }
+
+  // Re-attach event listeners for new buttons
+  setupFlowButtonListeners();
 }
 
 function renderFinalFlowButton() {
@@ -2728,7 +2732,6 @@ function renderFinalFlowButton() {
             data-step="final" data-type="hard">
       <span class="flow-btn-num">✓</span>
       <span class="flow-btn-label">Kiểm tra cuối</span>
-      ${clickCount > 0 ? `<span class="click-badge">${clickCount}</span>` : ""}
     </button>
   `;
 
@@ -2736,6 +2739,9 @@ function renderFinalFlowButton() {
   if (elements.stage3Progress) {
     elements.stage3Progress.textContent = isUsed ? "1/1" : "0/1";
   }
+
+  // Re-attach event listeners for new buttons
+  setupFlowButtonListeners();
 }
 
 // Override renderAll để gọi các hàm mới
