@@ -868,9 +868,13 @@ let currentEditingStep = -1;
 function setupFlowButtonListeners() {
   const flowButtons = document.querySelectorAll('.flow-btn');
   flowButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const step = parseInt(btn.dataset.step);
-      const type = btn.dataset.type; // 'hard' or 'soft'
+    // Remove existing listener first to prevent duplicates
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+
+    newBtn.addEventListener('click', () => {
+      const step = parseInt(newBtn.dataset.step);
+      const type = newBtn.dataset.type; // 'hard' or 'soft'
       handleFlowButtonClick(step, type);
     });
   });
