@@ -304,48 +304,92 @@ chrome.commands.onCommand.addListener(async (command) => {
     // Get active tab
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
-    if (!tab) {
+    if (!tab || !tab.id) {
       console.log('[Background] No active tab');
       return;
     }
 
-    console.log('[Background] Sending capture command to tab:', tab.id, tab.url);
+    console.log('[Background] Capturing text from tab:', tab.id, tab.url);
 
-    // Send message to content script to capture text
+    // Always inject script directly - more reliable than messaging
     try {
-      await chrome.tabs.sendMessage(tab.id, { type: 'CAPTURE_TEXT' });
-      console.log('[Background] Capture command sent');
-    } catch (err) {
-      console.log('[Background] Could not send to tab, injecting script...');
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          // Helper: Show toast
+          function showToast(message, type = 'info') {
+            const existing = document.getElementById('cw-toast');
+            if (existing) existing.remove();
 
-      // Try injecting content script if not already there
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: () => {
-            const selection = window.getSelection();
-            const text = selection.toString().trim();
+            const colors = {
+              success: '#34a853',
+              error: '#ea4335',
+              warning: '#fbbc04',
+              info: '#4285f4'
+            };
 
-            if (!text) {
-              console.log('[CW-Inject] No text selected');
-              return { success: false, error: 'Chưa chọn text!' };
-            }
+            const toast = document.createElement('div');
+            toast.id = 'cw-toast';
+            toast.style.cssText = `
+              position: fixed;
+              bottom: 24px;
+              right: 24px;
+              padding: 12px 20px;
+              background: ${colors[type] || colors.info};
+              color: ${type === 'warning' ? '#000' : '#fff'};
+              border-radius: 8px;
+              font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+              font-size: 14px;
+              font-weight: 500;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+              z-index: 999999;
+              opacity: 0;
+              transform: translateY(20px);
+              transition: all 0.3s ease;
+            `;
+            toast.textContent = message;
 
-            const wordCount = text.split(/\s+/).filter(w => w).length;
+            document.body.appendChild(toast);
 
-            chrome.storage.local.set({
-              lastCapturedText: text,
-              lastCapturedTime: Date.now(),
-              lastCapturedWordCount: wordCount
+            requestAnimationFrame(() => {
+              toast.style.opacity = '1';
+              toast.style.transform = 'translateY(0)';
             });
 
-            console.log('[CW-Inject] Captured:', wordCount, 'words');
-            return { success: true, wordCount };
+            setTimeout(() => {
+              toast.style.opacity = '0';
+              toast.style.transform = 'translateY(-10px)';
+              setTimeout(() => toast.remove(), 300);
+            }, 3000);
           }
-        });
-      } catch (injectErr) {
-        console.error('[Background] Inject error:', injectErr);
-      }
+
+          // Capture selected text
+          const selection = window.getSelection();
+          const text = selection.toString().trim();
+
+          if (!text) {
+            showToast('Chưa chọn text!', 'warning');
+            return { success: false, error: 'Chưa chọn text!' };
+          }
+
+          const wordCount = text.split(/\s+/).filter(w => w).length;
+
+          // Save to storage
+          chrome.storage.local.set({
+            lastCapturedText: text,
+            lastCapturedTime: Date.now(),
+            lastCapturedWordCount: wordCount
+          });
+
+          showToast(`Đã capture: ${wordCount} từ`, 'success');
+          console.log('[CW] Captured:', wordCount, 'words');
+          return { success: true, wordCount };
+        }
+      });
+
+      console.log('[Background] Capture result:', results[0]?.result);
+    } catch (err) {
+      console.error('[Background] Capture error:', err);
     }
   }
 });
