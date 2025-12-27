@@ -6,40 +6,62 @@
 (function() {
   'use strict';
 
-  console.log('[YTB] Hotkey script loading...');
+  console.log('[YTB] Hotkey script init...');
 
-  // Default hotkey
+  // Default hotkey - Ctrl+Shift+G
   let hotkey = { ctrl: true, shift: true, alt: false, key: 'g' };
 
-  // Load from storage
+  // Load saved hotkey from storage
   chrome.storage.local.get(['settings'], (data) => {
     if (data.settings && data.settings.hotkey) {
       hotkey = data.settings.hotkey;
+      // Ensure key is lowercase string
+      if (hotkey.key && typeof hotkey.key === 'string') {
+        hotkey.key = hotkey.key.toLowerCase();
+      }
     }
-    console.log('[YTB] Hotkey:', hotkeyToString(hotkey));
+    console.log('[YTB] Loaded hotkey:', formatHotkey(hotkey));
   });
 
-  // Listen for changes
+  // Listen for hotkey changes from popup
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (msg.type === 'HOTKEY_CHANGED') {
+    if (msg.type === 'HOTKEY_CHANGED' && msg.hotkey) {
       hotkey = msg.hotkey;
-      console.log('[YTB] Hotkey changed to:', hotkeyToString(hotkey));
+      // Ensure key is lowercase
+      if (hotkey.key && typeof hotkey.key === 'string') {
+        hotkey.key = hotkey.key.toLowerCase();
+      }
+      console.log('[YTB] Hotkey updated to:', formatHotkey(hotkey));
       sendResponse({ success: true });
     }
     return true;
   });
 
-  function hotkeyToString(hk) {
+  // Also listen for storage changes (backup method)
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.settings && changes.settings.newValue) {
+      const newSettings = changes.settings.newValue;
+      if (newSettings.hotkey) {
+        hotkey = newSettings.hotkey;
+        if (hotkey.key && typeof hotkey.key === 'string') {
+          hotkey.key = hotkey.key.toLowerCase();
+        }
+        console.log('[YTB] Hotkey updated via storage:', formatHotkey(hotkey));
+      }
+    }
+  });
+
+  function formatHotkey(hk) {
+    if (!hk) return 'undefined';
     let s = '';
     if (hk.ctrl) s += 'Ctrl+';
     if (hk.shift) s += 'Shift+';
     if (hk.alt) s += 'Alt+';
-    s += hk.key === ' ' ? 'Space' : hk.key.toUpperCase();
+    s += hk.key === ' ' ? 'Space' : (hk.key || '?').toUpperCase();
     return s;
   }
 
   function showToast(msg, type) {
-    // Wait for body
     if (!document.body) {
       setTimeout(() => showToast(msg, type), 100);
       return;
@@ -66,14 +88,13 @@
       font: 600 14px/1.4 -apple-system, sans-serif !important;
       box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
       z-index: 2147483647 !important;
-      opacity: 1 !important;
-      transition: opacity 0.3s !important;
     `;
 
     document.body.appendChild(div);
 
     setTimeout(() => {
       div.style.opacity = '0';
+      div.style.transition = 'opacity 0.3s';
       setTimeout(() => div.remove(), 300);
     }, 2500);
   }
@@ -105,37 +126,56 @@
     });
   }
 
-  // Listen for keys - use window level
+  // Keydown listener
   window.addEventListener('keydown', function(e) {
-    // Must have at least Ctrl or Meta
+    // Quick exit if no modifier
     if (!e.ctrlKey && !e.metaKey && !e.altKey) return;
 
-    const ctrlOk = hotkey.ctrl ? (e.ctrlKey || e.metaKey) : (!e.ctrlKey && !e.metaKey);
-    const shiftOk = hotkey.shift ? e.shiftKey : !e.shiftKey;
-    const altOk = hotkey.alt ? e.altKey : !e.altKey;
+    // Get expected values with safety checks
+    const expectCtrl = hotkey.ctrl === true;
+    const expectShift = hotkey.shift === true;
+    const expectAlt = hotkey.alt === true;
+    const expectKey = (hotkey.key || 'g').toLowerCase();
 
+    // Check modifiers
+    const hasCtrl = e.ctrlKey || e.metaKey;
+    const hasShift = e.shiftKey;
+    const hasAlt = e.altKey;
+
+    const ctrlOk = expectCtrl ? hasCtrl : !hasCtrl;
+    const shiftOk = expectShift ? hasShift : !hasShift;
+    const altOk = expectAlt ? hasAlt : !hasAlt;
+
+    // Check key
     let keyOk = false;
-    const hkKey = hotkey.key.toLowerCase();
     const pressedKey = e.key.toLowerCase();
 
-    if (hkKey === ' ') {
+    if (expectKey === ' ' || expectKey === 'space') {
       keyOk = e.code === 'Space' || e.key === ' ';
     } else {
-      keyOk = pressedKey === hkKey;
+      keyOk = pressedKey === expectKey;
     }
 
-    // Debug
-    console.log('[YTB] Key:', e.key, 'Ctrl:', e.ctrlKey, 'Shift:', e.shiftKey, 'Match:', ctrlOk && shiftOk && altOk && keyOk);
+    const isMatch = ctrlOk && shiftOk && altOk && keyOk;
 
-    if (ctrlOk && shiftOk && altOk && keyOk) {
+    // Debug log
+    if (hasCtrl || hasAlt) {
+      console.log('[YTB] Pressed:',
+        (hasCtrl ? 'Ctrl+' : '') + (hasShift ? 'Shift+' : '') + (hasAlt ? 'Alt+' : '') + e.key,
+        '| Expected:', formatHotkey(hotkey),
+        '| Match:', isMatch
+      );
+    }
+
+    if (isMatch) {
       e.preventDefault();
       e.stopPropagation();
       e.stopImmediatePropagation();
-      console.log('[YTB] ★★★ MATCHED! Capturing... ★★★');
+      console.log('[YTB] ★ HOTKEY MATCHED! ★');
       capture();
       return false;
     }
   }, true);
 
-  console.log('[YTB] Ready!');
+  console.log('[YTB] Ready! Default:', formatHotkey(hotkey));
 })();
