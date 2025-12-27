@@ -3,149 +3,139 @@
  * Runs on ALL pages to capture text with custom hotkey
  */
 
-console.log('[YTB-Hotkey] Loading...');
+(function() {
+  'use strict';
 
-// Default hotkey settings
-let hotkey = { ctrl: true, shift: true, alt: false, key: 'g' };
+  console.log('[YTB] Hotkey script loading...');
 
-// Load hotkey from storage
-chrome.storage.local.get(['settings'], (data) => {
-  if (data.settings && data.settings.hotkey) {
-    hotkey = data.settings.hotkey;
-    console.log('[YTB-Hotkey] Loaded hotkey:', formatHotkey(hotkey));
-  }
-});
+  // Default hotkey
+  let hotkey = { ctrl: true, shift: true, alt: false, key: 'g' };
 
-// Listen for hotkey changes from popup
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'HOTKEY_CHANGED') {
-    hotkey = message.hotkey;
-    console.log('[YTB-Hotkey] Hotkey updated:', formatHotkey(hotkey));
-    sendResponse({ success: true });
-  }
-  return true;
-});
-
-// Format hotkey for display
-function formatHotkey(hk) {
-  const parts = [];
-  if (hk.ctrl) parts.push('Ctrl');
-  if (hk.shift) parts.push('Shift');
-  if (hk.alt) parts.push('Alt');
-  parts.push(hk.key === ' ' ? 'Space' : hk.key.toUpperCase());
-  return parts.join('+');
-}
-
-// Show toast notification
-function showToast(message, type = 'info') {
-  const existing = document.getElementById('ytb-hotkey-toast');
-  if (existing) existing.remove();
-
-  const colors = {
-    success: '#34a853',
-    error: '#ea4335',
-    warning: '#fbbc04',
-    info: '#4285f4'
-  };
-
-  const toast = document.createElement('div');
-  toast.id = 'ytb-hotkey-toast';
-  toast.style.cssText = `
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    padding: 12px 20px;
-    background: ${colors[type] || colors.info};
-    color: ${type === 'warning' ? '#000' : '#fff'};
-    border-radius: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 14px;
-    font-weight: 500;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    z-index: 2147483647;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: all 0.3s ease;
-  `;
-  toast.textContent = message;
-
-  document.body.appendChild(toast);
-
-  requestAnimationFrame(() => {
-    toast.style.opacity = '1';
-    toast.style.transform = 'translateY(0)';
+  // Load from storage
+  chrome.storage.local.get(['settings'], (data) => {
+    if (data.settings && data.settings.hotkey) {
+      hotkey = data.settings.hotkey;
+    }
+    console.log('[YTB] Hotkey:', hotkeyToString(hotkey));
   });
 
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(-10px)';
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}
-
-// Capture selected text
-function captureSelectedText() {
-  const selection = window.getSelection();
-  const text = selection.toString().trim();
-
-  if (!text) {
-    showToast('Chưa chọn text!', 'warning');
-    return;
-  }
-
-  const wordCount = text.split(/\s+/).filter(w => w).length;
-
-  // Save to storage
-  chrome.storage.local.set({
-    lastCapturedText: text,
-    lastCapturedTime: Date.now(),
-    lastCapturedWordCount: wordCount
-  }, () => {
-    console.log('[YTB-Hotkey] Captured:', wordCount, 'words');
-    showToast(`Đã capture: ${wordCount} từ`, 'success');
-
-    // Notify popup if open
-    chrome.runtime.sendMessage({
-      type: 'TEXT_CAPTURED',
-      text: text,
-      wordCount: wordCount
-    }).catch(() => {
-      // Popup closed, that's OK
-    });
+  // Listen for changes
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.type === 'HOTKEY_CHANGED') {
+      hotkey = msg.hotkey;
+      console.log('[YTB] Hotkey changed to:', hotkeyToString(hotkey));
+      sendResponse({ success: true });
+    }
+    return true;
   });
-}
 
-// Global keydown listener with capture phase
-document.addEventListener('keydown', (e) => {
-  // Check modifier keys
-  const ctrlMatch = hotkey.ctrl ? (e.ctrlKey || e.metaKey) : !(e.ctrlKey || e.metaKey);
-  const shiftMatch = hotkey.shift ? e.shiftKey : !e.shiftKey;
-  const altMatch = hotkey.alt ? e.altKey : !e.altKey;
-
-  // Check main key (case-insensitive)
-  let keyMatch = false;
-  if (hotkey.key === ' ') {
-    keyMatch = e.key === ' ' || e.code === 'Space';
-  } else {
-    keyMatch = e.key.toUpperCase() === hotkey.key.toUpperCase();
+  function hotkeyToString(hk) {
+    let s = '';
+    if (hk.ctrl) s += 'Ctrl+';
+    if (hk.shift) s += 'Shift+';
+    if (hk.alt) s += 'Alt+';
+    s += hk.key === ' ' ? 'Space' : hk.key.toUpperCase();
+    return s;
   }
 
-  // Debug log when any modifier is pressed
-  if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) {
-    console.log('[YTB-Hotkey] Key pressed:', {
-      pressed: `${e.ctrlKey || e.metaKey ? 'Ctrl+' : ''}${e.shiftKey ? 'Shift+' : ''}${e.altKey ? 'Alt+' : ''}${e.key}`,
-      expected: formatHotkey(hotkey),
-      match: ctrlMatch && shiftMatch && altMatch && keyMatch
+  function showToast(msg, type) {
+    // Wait for body
+    if (!document.body) {
+      setTimeout(() => showToast(msg, type), 100);
+      return;
+    }
+
+    const old = document.getElementById('ytb-toast');
+    if (old) old.remove();
+
+    const div = document.createElement('div');
+    div.id = 'ytb-toast';
+    div.textContent = msg;
+
+    const bg = type === 'success' ? '#34a853' : type === 'warning' ? '#fbbc04' : '#4285f4';
+    const fg = type === 'warning' ? '#000' : '#fff';
+
+    div.style.cssText = `
+      position: fixed !important;
+      bottom: 30px !important;
+      right: 30px !important;
+      padding: 14px 24px !important;
+      background: ${bg} !important;
+      color: ${fg} !important;
+      border-radius: 8px !important;
+      font: 600 14px/1.4 -apple-system, sans-serif !important;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+      z-index: 2147483647 !important;
+      opacity: 1 !important;
+      transition: opacity 0.3s !important;
+    `;
+
+    document.body.appendChild(div);
+
+    setTimeout(() => {
+      div.style.opacity = '0';
+      setTimeout(() => div.remove(), 300);
+    }, 2500);
+  }
+
+  function capture() {
+    const sel = window.getSelection();
+    const text = sel ? sel.toString().trim() : '';
+
+    if (!text) {
+      showToast('Chưa chọn text!', 'warning');
+      return;
+    }
+
+    const words = text.split(/\s+/).filter(w => w).length;
+
+    chrome.storage.local.set({
+      lastCapturedText: text,
+      lastCapturedTime: Date.now(),
+      lastCapturedWordCount: words
+    }, () => {
+      showToast(`Đã capture: ${words} từ`, 'success');
+      console.log('[YTB] Captured', words, 'words');
+
+      chrome.runtime.sendMessage({
+        type: 'TEXT_CAPTURED',
+        text: text,
+        wordCount: words
+      }).catch(() => {});
     });
   }
 
-  // If all match, capture text
-  if (ctrlMatch && shiftMatch && altMatch && keyMatch) {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('[YTB-Hotkey] ★ Hotkey matched! Capturing...');
-    captureSelectedText();
-  }
-}, true); // capture phase = true
+  // Listen for keys - use window level
+  window.addEventListener('keydown', function(e) {
+    // Must have at least Ctrl or Meta
+    if (!e.ctrlKey && !e.metaKey && !e.altKey) return;
 
-console.log('[YTB-Hotkey] Ready. Hotkey:', formatHotkey(hotkey));
+    const ctrlOk = hotkey.ctrl ? (e.ctrlKey || e.metaKey) : (!e.ctrlKey && !e.metaKey);
+    const shiftOk = hotkey.shift ? e.shiftKey : !e.shiftKey;
+    const altOk = hotkey.alt ? e.altKey : !e.altKey;
+
+    let keyOk = false;
+    const hkKey = hotkey.key.toLowerCase();
+    const pressedKey = e.key.toLowerCase();
+
+    if (hkKey === ' ') {
+      keyOk = e.code === 'Space' || e.key === ' ';
+    } else {
+      keyOk = pressedKey === hkKey;
+    }
+
+    // Debug
+    console.log('[YTB] Key:', e.key, 'Ctrl:', e.ctrlKey, 'Shift:', e.shiftKey, 'Match:', ctrlOk && shiftOk && altOk && keyOk);
+
+    if (ctrlOk && shiftOk && altOk && keyOk) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      console.log('[YTB] ★★★ MATCHED! Capturing... ★★★');
+      capture();
+      return false;
+    }
+  }, true);
+
+  console.log('[YTB] Ready!');
+})();
