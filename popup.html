@@ -8,30 +8,74 @@
 </head>
 <body>
   <div class="app">
-    <!-- Header -->
-    <header class="header">
-      <div class="header-title">
-        <span class="logo">🐷</span>
-        <h1>YeuTuBe</h1>
+    <!-- ========== ONBOARDING SCREEN (Bước 1) ========== -->
+    <div class="onboarding-screen" id="onboardingScreen">
+      <div class="onboarding-header">
+        <span class="onboarding-logo">🐷</span>
+        <h1 class="onboarding-title">YeuTuBe</h1>
+        <p class="onboarding-subtitle">Chọn loại bài viết để bắt đầu</p>
       </div>
-      <div class="header-actions">
-        <button class="btn-icon" id="popoutBtn" title="Mở cửa sổ riêng">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <line x1="10" y1="14" x2="21" y2="3"></line>
-          </svg>
-        </button>
-        <button class="btn-icon" id="resetBtn" title="Bài mới (Reset)">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-            <path d="M3 3v5h5"></path>
-          </svg>
-        </button>
-      </div>
-    </header>
 
-    <!-- Single Tab Content -->
+      <div class="onboarding-options">
+        <button class="onboarding-option" id="optionHasTitle">
+          <span class="option-icon">📝</span>
+          <span class="option-title">Có Tiêu Đề</span>
+          <span class="option-desc">Đã có sẵn tiêu đề và bài mẫu đối thủ</span>
+        </button>
+        <button class="onboarding-option" id="optionNoTitle">
+          <span class="option-icon">💡</span>
+          <span class="option-title">Gợi Ý Tiêu Đề</span>
+          <span class="option-desc">Cần Gemini gợi ý tiêu đề trước</span>
+        </button>
+      </div>
+
+      <div class="onboarding-hotkey">
+        <div class="onboarding-hotkey-header">
+          <span class="hotkey-icon">⌨️</span>
+          <span class="hotkey-title">Phím tắt Capture</span>
+        </div>
+        <div class="hotkey-recorder-large" id="onboardingHotkeyRecorder">
+          <div class="hotkey-display-large" id="onboardingHotkeyDisplay">
+            <span class="hotkey-key-large">Ctrl</span>
+            <span class="hotkey-plus-large">+</span>
+            <span class="hotkey-key-large">Shift</span>
+            <span class="hotkey-plus-large">+</span>
+            <span class="hotkey-key-large">C</span>
+          </div>
+          <div class="hotkey-recording-large" id="onboardingHotkeyRecording" style="display: none;">
+            <span class="recording-text-large">Nhấn phím mới...</span>
+          </div>
+        </div>
+        <p class="hotkey-hint">Click vào ô trên để thay đổi phím tắt</p>
+      </div>
+    </div>
+
+    <!-- ========== MAIN WORKSPACE (Bước 2) ========== -->
+    <div class="workspace-screen" id="workspaceScreen" style="display: none;">
+      <!-- Header -->
+      <header class="header">
+        <div class="header-title">
+          <span class="logo">🐷</span>
+          <h1>YeuTuBe</h1>
+        </div>
+        <div class="header-actions">
+          <button class="btn-icon" id="popoutBtn" title="Mở cửa sổ riêng">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </button>
+          <button class="btn-icon" id="resetBtn" title="Bài mới (Reset)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+              <path d="M3 3v5h5"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Single Tab Content -->
     <div class="tab-content active" id="main-tab">
       <!-- Progress Overview -->
       <div class="progress-overview">
@@ -68,7 +112,7 @@
                 <input type="text" id="titleInput" class="input-compact" placeholder="Tiêu đề bài viết...">
               </div>
             </div>
-            <!-- Row 2: Target + Parts + Hotkey -->
+            <!-- Row 2: Target + Parts -->
             <div class="setup-row">
               <div class="setup-cell">
                 <label class="label-mini">Target:</label>
@@ -78,19 +122,6 @@
               <div class="setup-cell">
                 <label class="label-mini">Phần:</label>
                 <input type="number" id="numPartsInput" class="input-mini" value="9" min="3" max="20">
-              </div>
-              <div class="setup-cell hotkey-cell" id="hotkeyRecorder">
-                <span class="label-mini">Hotkey:</span>
-                <div class="hotkey-mini" id="hotkeyDisplay">
-                  <span class="hotkey-key-mini">Ctrl</span>
-                  <span class="hotkey-plus-mini">+</span>
-                  <span class="hotkey-key-mini">Shift</span>
-                  <span class="hotkey-plus-mini">+</span>
-                  <span class="hotkey-key-mini">C</span>
-                </div>
-                <div class="hotkey-recording-mini" id="hotkeyRecording" style="display: none;">
-                  <span class="recording-text-mini">...</span>
-                </div>
               </div>
             </div>
           </div>
@@ -113,119 +144,42 @@
       <div class="card flow-card" id="flowCard">
         <div class="card-header">
           <h3>🎯 Flow viết bài</h3>
-          <span class="flow-status" id="flowStatus">0/19</span>
+          <span class="flow-status" id="flowStatus">Bước 0/20</span>
         </div>
 
-        <!-- Stage 1: Khởi đầu & Setup -->
-        <div class="accordion-item stage-accordion" id="stage1Accordion">
-          <div class="accordion-header stage-header-accordion" data-target="stage1Content">
-            <div class="accordion-header-left">
-              <span class="stage-status-icon" id="stage1Status">○</span>
-              <span class="accordion-title">Khởi đầu & Setup (6)</span>
-            </div>
-            <div class="accordion-header-right">
-              <span class="stage-progress" id="stage1Progress">0/6</span>
-              <span class="accordion-arrow">▼</span>
-            </div>
+        <!-- Stage 1: Khởi đầu, Setup & Outline (gộp) -->
+        <div class="flow-stage-section" id="stage1Section">
+          <div class="flow-stage-header">
+            <span class="stage-label">🚀 Khởi đầu & Outline</span>
+            <span class="stage-progress" id="stage1Progress">0/10</span>
           </div>
-          <div class="accordion-content" id="stage1Content">
-            <div class="flow-buttons">
-              <button class="flow-btn flow-btn-hard" data-step="0" data-type="hard">
-                <span class="flow-btn-num">0</span>
-                <span class="flow-btn-label">Chào</span>
-              </button>
-              <button class="flow-btn flow-btn-soft" data-step="1" data-type="soft">
-                <span class="flow-btn-num">1</span>
-                <span class="flow-btn-label">Tiêu đề</span>
-              </button>
-              <button class="flow-btn flow-btn-soft" data-step="2" data-type="soft">
-                <span class="flow-btn-num">2</span>
-                <span class="flow-btn-label">Bài mẫu</span>
-              </button>
-              <button class="flow-btn flow-btn-hard" data-step="3" data-type="hard">
-                <span class="flow-btn-num">3</span>
-                <span class="flow-btn-label">Đọc lại</span>
-              </button>
-              <button class="flow-btn flow-btn-hard" data-step="4" data-type="hard">
-                <span class="flow-btn-num">4</span>
-                <span class="flow-btn-label">Văn phong</span>
-              </button>
-              <button class="flow-btn flow-btn-soft" data-step="5" data-type="soft">
-                <span class="flow-btn-num">5</span>
-                <span class="flow-btn-label">Tên BS</span>
-              </button>
-            </div>
+          <div class="flow-buttons-inline" id="setupFlowButtons">
+            <!-- Buttons sẽ được generate động theo flowMode -->
           </div>
         </div>
 
-        <!-- Stage 2: Outline -->
-        <div class="accordion-item stage-accordion" id="stage2Accordion">
-          <div class="accordion-header stage-header-accordion" data-target="stage2Content">
-            <div class="accordion-header-left">
-              <span class="stage-status-icon" id="stage2Status">○</span>
-              <span class="accordion-title">Outline (3)</span>
-            </div>
-            <div class="accordion-header-right">
-              <span class="stage-progress" id="stage2Progress">0/3</span>
-              <span class="accordion-arrow">▼</span>
-            </div>
+        <!-- Stage 2: Viết nội dung -->
+        <div class="flow-stage-section" id="stage2Section">
+          <div class="flow-stage-header">
+            <span class="stage-label">📝 Viết nội dung</span>
+            <span class="stage-progress" id="stage2Progress">0/9</span>
           </div>
-          <div class="accordion-content" id="stage2Content">
-            <div class="flow-buttons">
-              <button class="flow-btn flow-btn-hard" data-step="6" data-type="hard">
-                <span class="flow-btn-num">6</span>
-                <span class="flow-btn-label">Lập outline</span>
-              </button>
-              <button class="flow-btn flow-btn-soft" data-step="7" data-type="soft">
-                <span class="flow-btn-num">7</span>
-                <span class="flow-btn-label">Thêm mùa</span>
-              </button>
-              <button class="flow-btn flow-btn-soft" data-step="8" data-type="soft">
-                <span class="flow-btn-num">8</span>
-                <span class="flow-btn-label">Phân bổ từ</span>
-              </button>
-            </div>
+          <div class="flow-buttons-inline" id="partButtonsContainer">
+            <!-- Part buttons will be generated dynamically -->
           </div>
         </div>
 
-        <!-- Stage 3: Viết nội dung -->
-        <div class="accordion-item stage-accordion expanded" id="stage3Accordion">
-          <div class="accordion-header stage-header-accordion active" data-target="stage3Content">
-            <div class="accordion-header-left">
-              <span class="stage-status-icon" id="stage3Status">○</span>
-              <span class="accordion-title" id="stage3Title">Viết nội dung (9)</span>
-            </div>
-            <div class="accordion-header-right">
-              <span class="stage-progress" id="stage3Progress">0/9</span>
-              <span class="accordion-arrow">▼</span>
-            </div>
+        <!-- Stage 3: Hoàn thành -->
+        <div class="flow-stage-section" id="stage3Section">
+          <div class="flow-stage-header">
+            <span class="stage-label">✅ Hoàn thành</span>
+            <span class="stage-progress" id="stage3Progress">0/1</span>
           </div>
-          <div class="accordion-content active" id="stage3Content">
-            <div class="flow-buttons flow-buttons-grid" id="partButtonsContainer">
-              <!-- Part buttons will be generated dynamically -->
-            </div>
-          </div>
-        </div>
-
-        <!-- Stage 4: Hoàn thành -->
-        <div class="accordion-item stage-accordion" id="stage4Accordion">
-          <div class="accordion-header stage-header-accordion" data-target="stage4Content">
-            <div class="accordion-header-left">
-              <span class="stage-status-icon" id="stage4Status">○</span>
-              <span class="accordion-title">Hoàn thành (1)</span>
-            </div>
-            <div class="accordion-header-right">
-              <span class="stage-progress" id="stage4Progress">0/1</span>
-              <span class="accordion-arrow">▼</span>
-            </div>
-          </div>
-          <div class="accordion-content" id="stage4Content">
-            <div class="flow-buttons">
-              <button class="flow-btn flow-btn-final flow-btn-hard" data-step="18" data-type="hard">
-                <span class="flow-btn-num">18</span>
-                <span class="flow-btn-label">Kiểm tra</span>
-              </button>
-            </div>
+          <div class="flow-buttons-inline" id="finalFlowButtons">
+            <button class="flow-btn flow-btn-hard flow-btn-final" data-step="final" data-type="hard">
+              <span class="flow-btn-num">✓</span>
+              <span class="flow-btn-label">Kiểm tra cuối</span>
+            </button>
           </div>
         </div>
       </div>
@@ -283,6 +237,7 @@
         <div class="clipboard-table-wrapper" id="clipboardTableWrapper"></div>
       </div>
     </div>
+    </div><!-- End workspace-screen -->
 
     <!-- Word Count Modal -->
     <div class="modal" id="wordCountModal">

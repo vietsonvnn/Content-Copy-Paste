@@ -3086,3 +3086,272 @@ body.popup-window .content-editor-textarea {
   color: var(--text-muted);
   font-size: 14px;
 }
+
+
+/* ========================================
+   Onboarding Screen (Bước 1)
+   ======================================== */
+.onboarding-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  padding: var(--space-xl);
+  background: linear-gradient(180deg, #f8faff 0%, #ffffff 100%);
+}
+
+.onboarding-header {
+  text-align: center;
+  margin-bottom: var(--space-xl);
+}
+
+.onboarding-logo {
+  font-size: 48px;
+  display: block;
+  margin-bottom: var(--space-sm);
+}
+
+.onboarding-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: var(--space-xs);
+}
+
+.onboarding-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.onboarding-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: 320px;
+  margin-bottom: var(--space-xl);
+}
+
+.onboarding-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-lg);
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.onboarding-option:hover {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.onboarding-option:active {
+  transform: translateY(0);
+}
+
+.option-icon {
+  font-size: 32px;
+  margin-bottom: var(--space-sm);
+}
+
+.option-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: var(--space-xs);
+}
+
+.option-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* Onboarding Hotkey Section */
+.onboarding-hotkey {
+  text-align: center;
+  padding: var(--space-lg);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 320px;
+}
+
+.onboarding-hotkey-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.hotkey-icon {
+  font-size: 20px;
+}
+
+.hotkey-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.hotkey-recorder-large {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-md);
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition);
+  margin-bottom: var(--space-sm);
+}
+
+.hotkey-recorder-large:hover {
+  border-color: var(--primary);
+}
+
+.hotkey-display-large {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hotkey-key-large {
+  background: linear-gradient(180deg, #ffffff 0%, #f3f4f6 100%);
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  box-shadow: 0 2px 0 #d1d5db;
+}
+
+.hotkey-plus-large {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.hotkey-recording-large {
+  padding: var(--space-sm);
+}
+
+.recording-text-large {
+  font-size: 13px;
+  color: var(--primary);
+  font-weight: 500;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.hotkey-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ========================================
+   Workspace Screen (Bước 2)
+   ======================================== */
+.workspace-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ========================================
+   Flow Stage Section (New Layout)
+   ======================================== */
+.flow-stage-section {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.flow-stage-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-sm);
+}
+
+.stage-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.stage-progress {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Flow buttons inline (hiển thị ngang) */
+.flow-buttons-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.flow-buttons-inline .flow-btn {
+  flex: 0 0 auto;
+  min-width: 54px;
+  padding: 6px 8px;
+}
+
+.flow-buttons-inline .flow-btn-label {
+  font-size: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50px;
+}
+
+.flow-buttons-inline .flow-btn-num {
+  font-size: 10px;
+}
+
+/* Badge cho click count - nhỏ hơn */
+.flow-btn .click-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--primary);
+  color: white;
+  font-size: 8px;
+  font-weight: 700;
+  min-width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* Final button styling */
+.flow-btn-final {
+  background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%) !important;
+  border-color: #16a34a !important;
+}
+
+.flow-btn-final:hover {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+}
+
+.flow-btn-final.used {
+  background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%) !important;
+}
+

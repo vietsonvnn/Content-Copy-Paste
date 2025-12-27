@@ -31,6 +31,7 @@ function showToast(message, type = 'info') {
 // State Management
 // ========================================
 const state = {
+  flowMode: null, // 'hasTitle' hoặc 'noTitle' - chọn từ onboarding
   totalTarget: 5000, // Default 5000 words
   numParts: 9, // Default 9 parts
   title: '',
@@ -51,38 +52,75 @@ const state = {
 };
 
 // ========================================
-// Flow Commands Configuration
+// Flow Commands Configuration - 2 modes
 // ========================================
-const FLOW_COMMANDS = {
-  // Stage 1: Khởi đầu
-  0: 'Xin chào bạn',
 
-  // Stage 2: Setup bài viết
-  1: 'Tôi có tiêu đề này: {TITLE}',
-  2: 'trước khi bắt đầu viết tôi muốn bạn hãy dùng những nội dung chính trong bài viết sau để viết lại nội dung mới hay hơn, tạo sự cấp bách và thu hút khán giả có vấn đề đang mắc phải: "{SAMPLE_CONTENT}"',
-  3: 'tôi chưa yêu cầu bạn viết, hãy làm lần lượt theo đúng yêu cầu của tôi, tôi muốn bạn đọc lại 1 lần nữa bài mẫu tôi vừa gửi và nắm trọn các ý chính',
-  4: 'Cho tôi biết trước khi lập outline 9 phần thì nội dung trên bạn sẽ áp dụng văn phong và kỹ thuật viết dạng mấy? khung trắng 9 phần dạng mấy? và mở đầu dạng nào?',
-  5: 'trong bài viết mẫu tôi gửi trên có nhắc đến tên bác sĩ hay tên nhân vật nào khác không. Nếu có hãy liệt kê tên bác sĩ: {DOCTOR_NAME}',
+// Flow "Có Tiêu Đề" - Đã có sẵn tiêu đề và bài mẫu đối thủ
+const FLOW_HAS_TITLE = {
+  // Khởi đầu
+  0: { cmd: 'Xin chào bạn', label: 'Chào', type: 'hard' },
+  1: { cmd: 'hãy cho tôi biết bạn hiểu dự án này đến đâu', label: 'Hiểu DA', type: 'hard' },
 
-  // Stage 3: Outline
-  6: 'ok, hãy lập outline 9 phần dựa trên tất cả những thông tin và kiến thức bạn có về nội dung trên và trong dự án này',
-  7: 'Thêm cho tôi yếu tố {SEASON} vào bài viết trên',
-  8: 'dựa vào Dàn Ý Kịch Bản Chi Tiết (Outline 9 Phần), gợi ý cho tôi số lượng từ mỗi phần tương ứng để tổng số lượng từ tiếng Hàn đạt {TOTAL} từ',
+  // Setup với tiêu đề + bài mẫu
+  2: { cmd: 'Tôi có tiêu đề này: {TITLE}', label: 'Tiêu đề', type: 'soft' },
+  3: { cmd: 'trước khi bắt đầu viết tôi muốn bạn hãy dùng những nội dung chính trong bài viết sau để viết lại nội dung mới hay hơn, tạo sự cấp bách và thu hút khán giả có vấn đề đang mắc phải: "{SAMPLE_CONTENT}"', label: 'Bài mẫu', type: 'soft' },
+  4: { cmd: 'tôi chưa yêu cầu bạn viết, hãy làm lần lượt theo đúng yêu cầu của tôi, tôi muốn bạn đọc lại 1 lần nữa bài mẫu tôi vừa gửi và nắm trọn các ý chính', label: 'Đọc lại', type: 'hard' },
+  5: { cmd: 'Cho tôi biết trước khi lập outline 9 phần thì nội dung trên bạn sẽ áp dụng văn phong và kỹ thuật viết dạng mấy? khung trắng 9 phần dạng mấy? và mở đầu dạng nào?', label: 'Văn phong', type: 'hard' },
+  6: { cmd: 'trong bài viết mẫu tôi gửi trên có nhắc đến tên bác sĩ hay tên nhân vật nào khác không. Nếu có hãy liệt kê tên bác sĩ: {DOCTOR_NAME}', label: 'Tên BS', type: 'soft' },
 
-  // Stage 4: Viết nội dung (9-17 = Part 1-9)
-  9: 'Viết phần 1 bám sát tài liệu bài viết mẫu bên trên. Viết đủ {WORDS_P1} từ có mở đầu tương tự bài viết mẫu bên trên. Nội dung được viết bằng tiếng Hàn, xưng hô "tôi" (저/제) và gọi khán giả là "bạn/các bạn" (여러분), phù hợp với văn hóa Hàn Quốc và các quy định của YouTube. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
-  10: 'Viết phần 2 bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS_P2} từ. Không viết trên canvas. Tiếp nối phần 1, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
-  11: 'Viết phần 3 bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS_P3} từ. Không viết trên canvas. Tiếp nối phần 2, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
-  12: 'Viết phần 4 bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS_P4} từ. Không viết trên canvas. Tiếp nối phần 3, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
-  13: 'Viết phần 5 bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS_P5} từ. Không viết trên canvas. Tiếp nối phần 4, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
-  14: 'Viết phần 6 bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS_P6} từ. Không viết trên canvas. Tiếp nối phần 5, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
-  15: 'Viết phần 7 bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS_P7} từ. Không viết trên canvas. Tiếp nối phần 6, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
-  16: 'Viết phần 8 bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS_P8} từ. Không viết trên canvas. Tiếp nối phần 7, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
-  17: 'Viết phần 9 Kết thúc Part 9 thật trọn vẹn theo đúng outline (đóng vòng cung đầy đủ, đưa ra lời khuyên cuối cùng để câu chuyện khép lại xúc động) bám sát tài liệu bài viết mẫu bên trên đủ {WORDS_P9} từ không bao gồm dấu cách. Không viết trên canvas. Tiếp nối phần 8, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
+  // Outline
+  7: { cmd: 'ok, hãy lập outline 9 phần dựa trên tất cả những thông tin và kiến thức bạn có về nội dung trên và trong dự án này', label: 'Outline', type: 'hard' },
+  8: { cmd: 'Thêm cho tôi yếu tố {SEASON} vào bài viết trên', label: 'Mùa', type: 'soft' },
+  9: { cmd: 'dựa vào Dàn Ý Kịch Bản Chi Tiết (Outline 9 Phần), gợi ý cho tôi số lượng từ mỗi phần tương ứng để tổng số lượng từ tiếng Hàn đạt {TOTAL} từ', label: 'Số từ', type: 'soft' },
 
-  // Stage 5: Hoàn thành
-  18: 'Kiểm tra lại xem toàn bộ nội dung của bài viết trên tính đồng nhất và liên kết mạch hay không? Có nội dung nào bất hợp lý phi thực tế không? Kiểm tra lại xem đã đúng ngữ pháp Hàn cho người nghe chưa? Nếu có đoạn nào bất hợp lí mà nội dung có sai sự thật hay đề xuất.'
+  // Viết nội dung - sẽ được generate động theo numParts
+  // startWriteIndex = 10
 };
+
+// Flow "Ko Tiêu Đề" - Cần Gemini gợi ý tiêu đề trước
+const FLOW_NO_TITLE = {
+  // Khởi đầu
+  0: { cmd: 'Xin chào bạn', label: 'Chào', type: 'hard' },
+  1: { cmd: 'hãy cho tôi biết bạn hiểu dự án này đến đâu', label: 'Hiểu DA', type: 'hard' },
+
+  // Gợi ý tiêu đề (bước riêng cho flow này)
+  2: { cmd: 'gợi ý tiêu đề về {TOPIC_HINT} với bất kì các tuyến nội dung nào cho người Hàn Quốc', label: 'Gợi ý TĐ', type: 'soft' },
+
+  // Setup với tiêu đề
+  3: { cmd: 'Tôi có tiêu đề này: {TITLE}', label: 'Tiêu đề', type: 'soft' },
+  4: { cmd: 'trước khi bắt đầu viết tôi muốn bạn hãy dùng những nội dung chính trong bài viết sau để viết lại nội dung mới hay hơn, tạo sự cấp bách và thu hút khán giả có vấn đề đang mắc phải: "{SAMPLE_CONTENT}"', label: 'Bài mẫu', type: 'soft' },
+  5: { cmd: 'tôi chưa yêu cầu bạn viết, hãy làm lần lượt theo đúng yêu cầu của tôi, tôi muốn bạn đọc lại 1 lần nữa bài mẫu tôi vừa gửi và nắm trọn các ý chính', label: 'Đọc lại', type: 'hard' },
+  6: { cmd: 'Cho tôi biết trước khi lập outline 9 phần thì nội dung trên bạn sẽ áp dụng văn phong và kỹ thuật viết dạng mấy? khung trắng 9 phần dạng mấy? và mở đầu dạng nào?', label: 'Văn phong', type: 'hard' },
+  7: { cmd: 'trong bài viết mẫu tôi gửi trên có nhắc đến tên bác sĩ hay tên nhân vật nào khác không. Nếu có hãy liệt kê tên bác sĩ: {DOCTOR_NAME}', label: 'Tên BS', type: 'soft' },
+
+  // Outline
+  8: { cmd: 'ok, hãy lập outline 9 phần dựa trên tất cả những thông tin và kiến thức bạn có về nội dung trên và trong dự án này', label: 'Outline', type: 'hard' },
+  9: { cmd: 'Thêm cho tôi yếu tố {SEASON} vào bài viết trên', label: 'Mùa', type: 'soft' },
+  10: { cmd: 'dựa vào Dàn Ý Kịch Bản Chi Tiết (Outline 9 Phần), gợi ý cho tôi số lượng từ mỗi phần tương ứng để tổng số lượng từ tiếng Hàn đạt {TOTAL} từ', label: 'Số từ', type: 'soft' },
+
+  // Viết nội dung - sẽ được generate động theo numParts
+  // startWriteIndex = 11
+};
+
+// Template cho các phần viết nội dung
+const WRITE_PART_TEMPLATE = {
+  1: 'Viết phần 1 bám sát tài liệu bài viết mẫu bên trên. Viết đủ {WORDS} từ có mở đầu tương tự bài viết mẫu bên trên. Nội dung được viết bằng tiếng Hàn, xưng hô "tôi" (저/제) và gọi khán giả là "bạn/các bạn" (여러분), phù hợp với văn hóa Hàn Quốc và các quy định của YouTube. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
+  middle: 'Viết phần {PART} bám sát tài liệu bài viết mẫu bên trên, viết đủ {WORDS} từ. Không viết trên canvas. Tiếp nối phần {PREV_PART}, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm',
+  last: 'Viết phần {PART} Kết thúc Part {PART} thật trọn vẹn theo đúng outline (đóng vòng cung đầy đủ, đưa ra lời khuyên cuối cùng để câu chuyện khép lại xúc động) bám sát tài liệu bài viết mẫu bên trên đủ {WORDS} từ không bao gồm dấu cách. Không viết trên canvas. Tiếp nối phần {PREV_PART}, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm'
+};
+
+// Command kiểm tra cuối
+const FINAL_CHECK_COMMAND = 'Kiểm tra lại xem toàn bộ nội dung của bài viết trên tính đồng nhất và liên kết mạch hay không? Có nội dung nào bất hợp lý phi thực tế không? Kiểm tra lại xem đã đúng ngữ pháp Hàn cho người nghe chưa? Nếu có đoạn nào bất hợp lí mà nội dung có sai sự thật hay đề xuất.';
+
+// Hàm lấy flow config theo mode
+function getFlowConfig() {
+  return state.flowMode === 'hasTitle' ? FLOW_HAS_TITLE : FLOW_NO_TITLE;
+}
+
+// Hàm lấy startWriteIndex theo mode
+function getStartWriteIndex() {
+  return state.flowMode === 'hasTitle' ? 10 : 11;
+}
 
 // Default word counts for each part
 const DEFAULT_WORD_COUNTS = {
@@ -103,33 +141,36 @@ let wordCounts = { ...DEFAULT_WORD_COUNTS };
 // Current selected part for content clipboard (1-indexed)
 let currentContentPart = 1;
 
-// Step labels for editor
-const STEP_LABELS = {
-  0: 'Chào hỏi',
-  1: 'Nhập tiêu đề',
-  2: 'Bài mẫu đối thủ',
-  3: 'Yêu cầu đọc lại',
-  4: 'Hỏi văn phong',
-  5: 'Hỏi tên bác sĩ',
-  6: 'Lập outline',
-  7: 'Thêm yếu tố mùa',
-  8: 'Phân bổ số từ',
-  9: 'Viết phần 1',
-  10: 'Viết phần 2',
-  11: 'Viết phần 3',
-  12: 'Viết phần 4',
-  13: 'Viết phần 5',
-  14: 'Viết phần 6',
-  15: 'Viết phần 7',
-  16: 'Viết phần 8',
-  17: 'Viết phần 9',
-  18: 'Kiểm tra cuối'
-};
+// Step labels for editor - sẽ được generate động
+function getStepLabel(step) {
+  const flowConfig = getFlowConfig();
+  if (flowConfig[step]) {
+    return flowConfig[step].label;
+  }
+  const startWriteIndex = getStartWriteIndex();
+  const partNum = step - startWriteIndex + 1;
+  if (partNum >= 1 && partNum <= state.numParts) {
+    return `Viết P${partNum}`;
+  }
+  if (step === 'final') {
+    return 'Kiểm tra cuối';
+  }
+  return `Bước ${step}`;
+}
 
 // ========================================
 // DOM Elements
 // ========================================
 const elements = {
+  // Onboarding Screen
+  onboardingScreen: document.getElementById('onboardingScreen'),
+  workspaceScreen: document.getElementById('workspaceScreen'),
+  optionHasTitle: document.getElementById('optionHasTitle'),
+  optionNoTitle: document.getElementById('optionNoTitle'),
+  onboardingHotkeyRecorder: document.getElementById('onboardingHotkeyRecorder'),
+  onboardingHotkeyDisplay: document.getElementById('onboardingHotkeyDisplay'),
+  onboardingHotkeyRecording: document.getElementById('onboardingHotkeyRecording'),
+
   // Header
   popoutBtn: document.getElementById('popoutBtn'),
   resetBtn: document.getElementById('resetBtn'),
@@ -152,8 +193,14 @@ const elements = {
 
   // Dynamic containers
   partButtonsContainer: document.getElementById('partButtonsContainer'),
+  setupFlowButtons: document.getElementById('setupFlowButtons'),
+  finalFlowButtons: document.getElementById('finalFlowButtons'),
   wordEditGrid: document.getElementById('wordEditGrid'),
-  stage3Title: document.getElementById('stage3Title'),
+
+  // Stage progress
+  stage1Progress: document.getElementById('stage1Progress'),
+  stage2Progress: document.getElementById('stage2Progress'),
+  stage3Progress: document.getElementById('stage3Progress'),
 
   // Flow Commands
   flowCard: document.getElementById('flowCard'),
@@ -254,7 +301,9 @@ document.addEventListener('DOMContentLoaded', () => {
   loadState();
   setupEventListeners();
   setupMessageListener();
-  renderAll();
+
+  // Luôn hiện onboarding mỗi lần mở
+  showOnboarding();
 });
 
 // ========================================
@@ -340,9 +389,20 @@ function setupEventListeners() {
   if (elements.copyAllBtn) elements.copyAllBtn.addEventListener('click', handleCopyAll);
   if (elements.exportBtn) elements.exportBtn.addEventListener('click', handleExportData);
 
-  // Hotkey (inline)
-  if (elements.hotkeyRecorder) {
-    elements.hotkeyRecorder.addEventListener('click', startHotkeyRecording);
+  // Hotkey (inline) - removed from workspace, now in onboarding
+  // if (elements.hotkeyRecorder) {
+  //   elements.hotkeyRecorder.addEventListener('click', startHotkeyRecording);
+  // }
+
+  // Onboarding
+  if (elements.optionHasTitle) {
+    elements.optionHasTitle.addEventListener('click', () => selectFlowMode('hasTitle'));
+  }
+  if (elements.optionNoTitle) {
+    elements.optionNoTitle.addEventListener('click', () => selectFlowMode('noTitle'));
+  }
+  if (elements.onboardingHotkeyRecorder) {
+    elements.onboardingHotkeyRecorder.addEventListener('click', startOnboardingHotkeyRecording);
   }
 
   // Capture Modal
@@ -408,6 +468,7 @@ function handlePopout() {
 function handleReset() {
   if (confirm('Bạn có chắc muốn bắt đầu bài mới? Tất cả dữ liệu hiện tại sẽ bị xóa.')) {
     // Reset state
+    state.flowMode = null; // Reset flowMode để hiện onboarding lại
     state.totalTarget = 5000;
     state.numParts = 9;
     state.title = '';
@@ -466,7 +527,9 @@ function handleReset() {
 
     // Save and render
     saveState();
-    renderAll();
+
+    // Hiện lại onboarding
+    showOnboarding();
 
     showToast('Đã reset! Sẵn sàng cho bài mới.', 'success');
   }
@@ -873,7 +936,8 @@ function setupFlowButtonListeners() {
     btn.parentNode.replaceChild(newBtn, btn);
 
     newBtn.addEventListener('click', () => {
-      const step = parseInt(newBtn.dataset.step);
+      const stepAttr = newBtn.dataset.step;
+      const step = stepAttr === 'final' ? 'final' : parseInt(stepAttr);
       const type = newBtn.dataset.type; // 'hard' or 'soft'
       handleFlowButtonClick(step, type);
     });
@@ -906,23 +970,28 @@ function handleFlowButtonClick(step, type) {
 
 function prepareCommand(step) {
   const numParts = state.numParts || 9;
+  const startWriteIndex = getStartWriteIndex();
+  const flowConfig = getFlowConfig();
 
-  // For dynamic part steps (step > 8 and step <= 8 + numParts)
-  if (step > 8 && step <= 8 + numParts) {
-    const partNum = step - 8;
+  // Final check command
+  if (step === 'final') {
+    return FINAL_CHECK_COMMAND;
+  }
+
+  // For dynamic part steps
+  if (step >= startWriteIndex && step < startWriteIndex + numParts) {
+    const partNum = step - startWriteIndex + 1;
     return generatePartCommand(partNum);
   }
 
-  // For steps beyond dynamic parts (final check)
-  if (step === 8 + numParts + 1) {
-    return FLOW_COMMANDS[18]; // Final check command
-  }
-
-  let command = FLOW_COMMANDS[step];
-  if (!command) {
+  // Get command from flow config
+  const stepConfig = flowConfig[step];
+  if (!stepConfig) {
     showToast('Không tìm thấy lệnh cho bước này', 'error');
     return null;
   }
+
+  let command = stepConfig.cmd;
 
   // Replace placeholders with state values or defaults
   command = command.replace('{TITLE}', state.title || '[TIÊU ĐỀ]');
@@ -934,6 +1003,7 @@ function prepareCommand(step) {
 
   command = command.replace('{DOCTOR_NAME}', '[TÊN BÁC SĨ]');
   command = command.replace('{SEASON}', 'mùa đông');
+  command = command.replace('{TOPIC_HINT}', '[CHỦ ĐỀ GỢI Ý, VD: thực phẩm cho não]');
 
   // Update outline command to use dynamic numParts
   command = command.replace(/outline 9 phần/gi, `outline ${numParts} phần`);
@@ -970,7 +1040,7 @@ function openCommandEditor(step) {
 
   // Update editor UI
   if (elements.editorStepLabel) {
-    elements.editorStepLabel.textContent = `Bước ${step}: ${STEP_LABELS[step] || ''}`;
+    elements.editorStepLabel.textContent = `Bước ${step}: ${getStepLabel(step)}`;
   }
   if (elements.commandEditor) {
     elements.commandEditor.value = command || '';
@@ -1651,13 +1721,18 @@ function handleResetAll() {
 // ========================================
 function renderAll() {
   renderProgress();
-  renderPartButtons(); // Render dynamic part buttons
-  updateFlowButtonStates();
+
+  // Render flow buttons theo mode mới
+  if (state.flowMode) {
+    renderSetupFlowButtons();
+    renderPartFlowButtons();
+    renderFinalFlowButton();
+    setupFlowButtonListeners(); // Re-attach listeners sau khi render
+  }
+
   updateFlowStatus();
   updateWordsSummaryBar();
-  updateStageProgress();
   renderClipboardTable();
-  updateHotkeyDisplay();
   updateFileDisplay(); // Update file display if there's a file
   renderContentClipboard(); // Render content clipboard section
 }
@@ -2381,3 +2456,230 @@ function saveFullscreenContent() {
   state.capturedContents[fsCurrentPart] = content;
   saveState();
 }
+
+
+// ========================================
+// Onboarding Functions
+// ========================================
+function showOnboarding() {
+  elements.onboardingScreen.style.display = "flex";
+  elements.workspaceScreen.style.display = "none";
+
+  // Cập nhật hiển thị hotkey trong onboarding
+  updateOnboardingHotkeyDisplay();
+}
+
+function hideOnboarding() {
+  elements.onboardingScreen.style.display = "none";
+  elements.workspaceScreen.style.display = "flex";
+}
+
+function selectFlowMode(mode) {
+  state.flowMode = mode;
+  saveState();
+
+  // Chuyển sang workspace
+  hideOnboarding();
+
+  // Render lại UI theo flow mode
+  renderAll();
+}
+
+function updateOnboardingHotkeyDisplay() {
+  const { hotkey } = state.settings;
+  const parts = [];
+  if (hotkey.ctrl) parts.push("Ctrl");
+  if (hotkey.shift) parts.push("Shift");
+  if (hotkey.alt) parts.push("Alt");
+  parts.push(hotkey.key);
+
+  if (elements.onboardingHotkeyDisplay) {
+    elements.onboardingHotkeyDisplay.innerHTML = parts.map(k => 
+      `<span class="hotkey-key-large">${k}</span>`
+    ).join(`<span class="hotkey-plus-large">+</span>`);
+  }
+}
+
+// ========================================
+// Setup Flow Buttons (dynamic theo flow mode)
+// ========================================
+function renderSetupFlowButtons() {
+  if (!elements.setupFlowButtons) return;
+
+  const flowConfig = getFlowConfig();
+  const numSetupSteps = Object.keys(flowConfig).length;
+  let html = "";
+
+  // Render từng nút trong flow config
+  Object.entries(flowConfig).forEach(([step, config]) => {
+    const stepNum = parseInt(step);
+    const isUsed = state.flowClickCounts[stepNum] > 0;
+    const clickCount = state.flowClickCounts[stepNum] || 0;
+    const typeClass = config.type === "hard" ? "flow-btn-hard" : "flow-btn-soft";
+
+    html += `
+      <button class="flow-btn ${typeClass} ${isUsed ? "used" : ""}" 
+              data-step="${stepNum}" data-type="${config.type}">
+        <span class="flow-btn-num">${stepNum}</span>
+        <span class="flow-btn-label">${config.label}</span>
+        ${clickCount > 0 ? `<span class="click-badge">${clickCount}</span>` : ""}
+      </button>
+    `;
+  });
+
+  elements.setupFlowButtons.innerHTML = html;
+  
+  // Update progress
+  const completed = Object.keys(flowConfig).filter(s => state.flowClickCounts[parseInt(s)] > 0).length;
+  if (elements.stage1Progress) {
+    elements.stage1Progress.textContent = `${completed}/${numSetupSteps}`;
+  }
+}
+
+function renderPartFlowButtons() {
+  if (!elements.partButtonsContainer) return;
+
+  const startWriteIndex = getStartWriteIndex();
+  let html = "";
+
+  for (let i = 1; i <= state.numParts; i++) {
+    const step = startWriteIndex + i - 1;
+    const isUsed = state.flowClickCounts[step] > 0;
+    const clickCount = state.flowClickCounts[step] || 0;
+
+    html += `
+      <button class="flow-btn flow-btn-soft ${isUsed ? "used" : ""}"
+              data-step="${step}" data-type="soft" data-part="${i}">
+        <span class="flow-btn-num">P${i}</span>
+        <span class="flow-btn-label">${wordCounts["P" + i] || 0}</span>
+        ${clickCount > 0 ? `<span class="click-badge">${clickCount}</span>` : ""}
+      </button>
+    `;
+  }
+
+  elements.partButtonsContainer.innerHTML = html;
+  
+  // Update progress
+  let completed = 0;
+  for (let i = 1; i <= state.numParts; i++) {
+    const step = startWriteIndex + i - 1;
+    if (state.flowClickCounts[step] > 0) completed++;
+  }
+  if (elements.stage2Progress) {
+    elements.stage2Progress.textContent = `${completed}/${state.numParts}`;
+  }
+}
+
+function renderFinalFlowButton() {
+  if (!elements.finalFlowButtons) return;
+
+  const isUsed = state.flowClickCounts["final"] > 0;
+  const clickCount = state.flowClickCounts["final"] || 0;
+
+  elements.finalFlowButtons.innerHTML = `
+    <button class="flow-btn flow-btn-hard flow-btn-final ${isUsed ? "used" : ""}"
+            data-step="final" data-type="hard">
+      <span class="flow-btn-num">✓</span>
+      <span class="flow-btn-label">Kiểm tra cuối</span>
+      ${clickCount > 0 ? `<span class="click-badge">${clickCount}</span>` : ""}
+    </button>
+  `;
+
+  // Update progress
+  if (elements.stage3Progress) {
+    elements.stage3Progress.textContent = isUsed ? "1/1" : "0/1";
+  }
+}
+
+// Override renderAll để gọi các hàm mới
+const originalRenderAll = typeof renderAll === "function" ? renderAll : null;
+
+
+
+// ========================================
+// Onboarding Hotkey Recording
+// ========================================
+let isRecordingOnboardingHotkey = false;
+
+function startOnboardingHotkeyRecording() {
+  isRecordingOnboardingHotkey = true;
+
+  // Show recording state
+  if (elements.onboardingHotkeyDisplay) {
+    elements.onboardingHotkeyDisplay.style.display = "none";
+  }
+  if (elements.onboardingHotkeyRecording) {
+    elements.onboardingHotkeyRecording.style.display = "block";
+  }
+
+  // Listen for keydown
+  document.addEventListener("keydown", handleOnboardingHotkeyRecord);
+}
+
+function handleOnboardingHotkeyRecord(e) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Ignore modifier-only presses
+  if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) {
+    return;
+  }
+
+  // Save new hotkey
+  state.settings.hotkey = {
+    ctrl: e.ctrlKey || e.metaKey,
+    shift: e.shiftKey,
+    alt: e.altKey,
+    key: e.key.toUpperCase()
+  };
+
+  saveState();
+
+  // Update display
+  updateOnboardingHotkeyDisplay();
+
+  // Reset recording state
+  isRecordingOnboardingHotkey = false;
+  if (elements.onboardingHotkeyDisplay) {
+    elements.onboardingHotkeyDisplay.style.display = "flex";
+  }
+  if (elements.onboardingHotkeyRecording) {
+    elements.onboardingHotkeyRecording.style.display = "none";
+  }
+
+  // Remove listener
+  document.removeEventListener("keydown", handleOnboardingHotkeyRecord);
+
+  // Notify background about new hotkey
+  chrome.runtime.sendMessage({
+    type: "UPDATE_HOTKEY",
+    hotkey: state.settings.hotkey
+  });
+
+  showToast("Phím tắt đã được cập nhật!", "success");
+}
+
+// Update flow status based on new mode
+function updateFlowStatus() {
+  if (!elements.flowStatus) return;
+
+  const flowConfig = getFlowConfig();
+  const startWriteIndex = getStartWriteIndex();
+  const numParts = state.numParts || 9;
+
+  // Total steps = setup steps + writing parts + 1 final check
+  const totalSteps = Object.keys(flowConfig).length + numParts + 1;
+
+  // Count completed steps
+  let completed = 0;
+  Object.keys(flowConfig).forEach(step => {
+    if (state.flowClickCounts[parseInt(step)] > 0) completed++;
+  });
+  for (let i = 0; i < numParts; i++) {
+    if (state.flowClickCounts[startWriteIndex + i] > 0) completed++;
+  }
+  if (state.flowClickCounts["final"] > 0) completed++;
+
+  elements.flowStatus.textContent = `Bước ${completed}/${totalSteps}`;
+}
+
