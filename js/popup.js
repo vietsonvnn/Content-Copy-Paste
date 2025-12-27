@@ -1325,13 +1325,16 @@ function handleTextCaptured(text) {
   capturedWordCount = countWords(text);
 
   // Use currentContentPart (the selected part in content clipboard)
+  // QUAN TRỌNG: Chỉ thay thế nội dung của ĐÚNG phần đang được chọn
   const partNum = currentContentPart;
   const targetWords = wordCounts[`P${partNum}`] || 0;
 
-  // Append to existing content
-  const existingContent = state.capturedContents[partNum] || '';
-  const newContent = existingContent + (existingContent ? '\n\n' : '') + text;
+  // THAY THẾ HOÀN TOÀN nội dung cũ bằng nội dung mới (không append)
+  const oldContent = state.capturedContents[partNum] || '';
+  const newContent = text; // Thay thế hoàn toàn, không thêm vào
   state.capturedContents[partNum] = newContent;
+
+  console.log(`[Popup] Capture vào Phần ${partNum}: Thay thế ${countWords(oldContent)} từ cũ bằng ${capturedWordCount} từ mới`);
 
   // Update the content editor textarea if visible
   if (elements.contentEditorTextarea) {
@@ -1364,8 +1367,8 @@ function handleTextCaptured(text) {
   // Save state
   saveState();
 
-  // Show toast
-  showToast(`Đã capture ${capturedWordCount} từ vào Phần ${partNum}!`, 'success');
+  // Show toast với thông tin rõ ràng
+  showToast(`Phần ${partNum}: Đã thay thế bằng ${capturedWordCount} từ mới!`, 'success');
 }
 
 // ========================================
@@ -1396,14 +1399,15 @@ function handleActionContinue() {
   const currentCommand = state.commands[state.currentCommandIndex];
   if (!currentCommand) return;
 
-  // Save captured content (accumulate)
-  const existingContent = state.capturedContents[currentCommand.id] || '';
-  state.capturedContents[currentCommand.id] = existingContent + (existingContent ? '\n\n' : '') + capturedText;
+  // THAY THẾ nội dung (không accumulate)
+  state.capturedContents[currentCommand.id] = capturedText;
 
   // Update word count
-  currentCommand.actualWords = (currentCommand.actualWords || 0) + capturedWordCount;
-  state.parts[state.currentCommandIndex].actualWords = currentCommand.actualWords;
-  state.parts[state.currentCommandIndex].content = state.capturedContents[currentCommand.id];
+  currentCommand.actualWords = capturedWordCount;
+  if (state.parts[state.currentCommandIndex]) {
+    state.parts[state.currentCommandIndex].actualWords = currentCommand.actualWords;
+    state.parts[state.currentCommandIndex].content = capturedText;
+  }
 
   // Generate continue command
   const remaining = currentCommand.targetWords - currentCommand.actualWords;
@@ -1433,19 +1437,18 @@ function handleActionDone() {
 
   const currentCommand = state.commands[state.currentCommandIndex];
   if (currentCommand) {
-    // Save captured content
-    const existingContent = state.capturedContents[currentCommand.id] || '';
-    state.capturedContents[currentCommand.id] = existingContent + (existingContent ? '\n\n' : '') + capturedText;
+    // THAY THẾ nội dung (không accumulate)
+    state.capturedContents[currentCommand.id] = capturedText;
 
     // Mark as done
-    currentCommand.actualWords = (currentCommand.actualWords || 0) + capturedWordCount;
+    currentCommand.actualWords = capturedWordCount;
     currentCommand.status = 'done';
-    currentCommand.content = state.capturedContents[currentCommand.id];
+    currentCommand.content = capturedText;
 
     if (state.parts[state.currentCommandIndex]) {
       state.parts[state.currentCommandIndex].actualWords = currentCommand.actualWords;
       state.parts[state.currentCommandIndex].status = 'done';
-      state.parts[state.currentCommandIndex].content = state.capturedContents[currentCommand.id];
+      state.parts[state.currentCommandIndex].content = capturedText;
     }
 
     // Move to next command
