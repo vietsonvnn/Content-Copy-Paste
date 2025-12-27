@@ -3371,3 +3371,31 @@ body.popup-window .content-editor-textarea {
   object-fit: contain;
 }
 
+
+
+/* Onboarding Popout Button */
+.onboarding-popout {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  background: rgba(255,255,255,0.9);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.onboarding-popout:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+}
+
+.onboarding-popout svg {
+  stroke: var(--text-secondary);
+}
+
+.onboarding-popout:hover svg {
+  stroke: var(--primary);
+}
+

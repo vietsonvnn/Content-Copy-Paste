@@ -170,6 +170,7 @@ const elements = {
   onboardingHotkeyRecorder: document.getElementById('onboardingHotkeyRecorder'),
   onboardingHotkeyDisplay: document.getElementById('onboardingHotkeyDisplay'),
   onboardingHotkeyRecording: document.getElementById('onboardingHotkeyRecording'),
+  onboardingPopoutBtn: document.getElementById('onboardingPopoutBtn'),
 
   // Header
   popoutBtn: document.getElementById('popoutBtn'),
@@ -403,6 +404,9 @@ function setupEventListeners() {
   }
   if (elements.onboardingHotkeyRecorder) {
     elements.onboardingHotkeyRecorder.addEventListener('click', startOnboardingHotkeyRecording);
+  }
+  if (elements.onboardingPopoutBtn) {
+    elements.onboardingPopoutBtn.addEventListener('click', handlePopout);
   }
 
   // Capture Modal
