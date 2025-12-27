@@ -2399,7 +2399,7 @@ function renderFullscreenEditor() {
   // Update total stats in header
   const totalWritten = calculateTotalWritten();
   const totalTarget = state.totalTarget || 5000;
-  const percent = totalTarget > 0 ? Math.min((totalWritten / totalTarget) * 100, 100) : 0;
+  const percent = totalTarget > 0 ? (totalWritten / totalTarget) * 100 : 0;
 
   elements.fsEditorTotalWritten.textContent = totalWritten.toLocaleString();
   elements.fsEditorTotalTarget.textContent = totalTarget.toLocaleString();
@@ -2479,7 +2479,7 @@ function handleFsTargetChange() {
   // Update fullscreen header
   elements.fsEditorTotalTarget.textContent = total.toLocaleString();
   const totalWritten = calculateTotalWritten();
-  const percent = total > 0 ? Math.min((totalWritten / total) * 100, 100) : 0;
+  const percent = total > 0 ? (totalWritten / total) * 100 : 0;
   elements.fsEditorPercent.textContent = `${percent.toFixed(1)}%`;
 
   // Update tabs
@@ -2554,7 +2554,7 @@ function updateFullscreenTabs() {
   // Update total stats
   const totalWritten = calculateTotalWritten();
   const totalTarget = state.totalTarget || 5000;
-  const percent = totalTarget > 0 ? Math.min((totalWritten / totalTarget) * 100, 100) : 0;
+  const percent = totalTarget > 0 ? (totalWritten / totalTarget) * 100 : 0;
 
   elements.fsEditorTotalWritten.textContent = totalWritten.toLocaleString();
   elements.fsEditorPercent.textContent = `${percent.toFixed(1)}%`;
