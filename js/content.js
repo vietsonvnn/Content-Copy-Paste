@@ -67,28 +67,36 @@ document.addEventListener('keydown', (e) => {
   const altMatch = alt ? e.altKey : !e.altKey;
 
   // Handle Space key specially (e.key can be ' ' or 'Space')
+  // For letter keys with Shift pressed, e.key will be uppercase (e.g., 'G')
   let keyMatch = false;
   if (key === ' ') {
     keyMatch = e.key === ' ' || e.code === 'Space';
   } else {
+    // Compare case-insensitively for letters
     keyMatch = e.key.toUpperCase() === key.toUpperCase();
   }
 
-  // Debug log for hotkey matching
-  if ((e.ctrlKey || e.metaKey)) {
-    console.log('[CW] Hotkey detected:', {
-      pressed: `${e.ctrlKey || e.metaKey ? 'Ctrl+' : ''}${e.shiftKey ? 'Shift+' : ''}${e.altKey ? 'Alt+' : ''}${e.key === ' ' ? 'Space' : e.key}`,
-      expected: `${ctrl ? 'Ctrl+' : ''}${shift ? 'Shift+' : ''}${alt ? 'Alt+' : ''}${key === ' ' ? 'Space' : key}`,
-      match: ctrlMatch && shiftMatch && altMatch && keyMatch
+  // Debug: Log ALL Ctrl combinations to help troubleshoot
+  if (e.ctrlKey || e.metaKey || e.shiftKey) {
+    console.log('[CW] Key event:', {
+      key: e.key,
+      code: e.code,
+      ctrlKey: e.ctrlKey,
+      metaKey: e.metaKey,
+      shiftKey: e.shiftKey,
+      altKey: e.altKey,
+      expected: { ctrl, shift, alt, key },
+      matches: { ctrlMatch, shiftMatch, altMatch, keyMatch }
     });
   }
 
   if (ctrlMatch && shiftMatch && altMatch && keyMatch) {
     e.preventDefault();
-    console.log('[CW] Hotkey matched! Capturing text...');
+    e.stopPropagation();
+    console.log('[CW] ★★★ Hotkey matched! Capturing text... ★★★');
     captureSelectedText();
   }
-});
+}, true); // Use capture phase to catch event before other handlers
 
 // ========================================
 // Find Input Element
