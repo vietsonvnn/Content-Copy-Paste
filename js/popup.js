@@ -569,7 +569,8 @@ function handleNumPartsChange(e) {
   recalculateWordCounts();
 
   // Regenerate UI
-  renderPartButtons();
+  renderPartFlowButtons();
+  setupFlowButtonListeners(); // Re-attach listeners after rendering new buttons
   updateWordsSummaryBar();
   updateStageProgress();
   renderContentClipboard(); // Update content clipboard tabs
@@ -788,7 +789,8 @@ function saveWordCounts() {
 
   // Update UI - call ALL update functions
   updateWordsSummaryBar();
-  renderPartButtons();
+  renderPartFlowButtons();
+  setupFlowButtonListeners();
   renderProgress();
 
   // Save to storage

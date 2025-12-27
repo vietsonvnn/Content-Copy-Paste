@@ -3385,6 +3385,21 @@ body.popup-window .content-editor-textarea {
   max-width: 50px;
 }
 
+/* Part button word count - more visible color */
+#partButtonsContainer .flow-btn-label {
+  color: #7c3aed;
+  font-weight: 600;
+  font-size: 10px;
+}
+
+#partButtonsContainer .flow-btn.used .flow-btn-label {
+  color: #059669;
+}
+
+#partButtonsContainer .flow-btn:hover .flow-btn-label {
+  color: white;
+}
+
 .flow-buttons-inline .flow-btn-num {
   font-size: 10px;
 }
