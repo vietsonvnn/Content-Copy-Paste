@@ -176,6 +176,8 @@ const elements = {
   popoutBtn: document.getElementById('popoutBtn'),
   resetBtn: document.getElementById('resetBtn'),
   toastContainer: document.getElementById('toastContainer'),
+  headerHotkeyRecorder: document.getElementById('headerHotkeyRecorder'),
+  headerHotkeyDisplay: document.getElementById('headerHotkeyDisplay'),
 
   // Main Tab
   totalWritten: document.getElementById('totalWritten'),
@@ -299,12 +301,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('popup-window');
   }
 
-  loadState();
+  loadState(); // loadState sẽ quyết định hiện onboarding hay workspace
   setupEventListeners();
   setupMessageListener();
-
-  // Luôn hiện onboarding mỗi lần mở
-  showOnboarding();
 });
 
 // ========================================
@@ -407,6 +406,11 @@ function setupEventListeners() {
   }
   if (elements.onboardingPopoutBtn) {
     elements.onboardingPopoutBtn.addEventListener('click', handlePopout);
+  }
+
+  // Header hotkey recorder (in workspace)
+  if (elements.headerHotkeyRecorder) {
+    elements.headerHotkeyRecorder.addEventListener('click', startHeaderHotkeyRecording);
   }
 
   // Capture Modal
@@ -1765,6 +1769,7 @@ function renderAll() {
   renderClipboardTable();
   updateFileDisplay(); // Update file display if there's a file
   renderContentClipboard(); // Render content clipboard section
+  updateHeaderHotkeyDisplay(); // Update hotkey display in header
 }
 
 function updateFileDisplay() {
@@ -2264,6 +2269,7 @@ function handleEditorTargetChange() {
 // ========================================
 function saveState() {
   chrome.storage.local.set({
+    flowMode: state.flowMode,
     totalTarget: state.totalTarget,
     numParts: state.numParts,
     title: state.title,
@@ -2284,6 +2290,7 @@ function saveState() {
 
 function loadState() {
   chrome.storage.local.get([
+    'flowMode',
     'totalTarget',
     'numParts',
     'title',
@@ -2300,6 +2307,7 @@ function loadState() {
     'wordCounts',
     'currentContentPart'
   ], (data) => {
+    if (data.flowMode) state.flowMode = data.flowMode;
     if (data.totalTarget !== undefined) state.totalTarget = data.totalTarget;
     if (data.numParts !== undefined) state.numParts = data.numParts;
     if (data.title !== undefined) state.title = data.title;
@@ -2331,7 +2339,15 @@ function loadState() {
       recalculateWordCounts();
     }
 
-    renderAll();
+    // Quyết định hiện onboarding hay workspace dựa trên flowMode đã load
+    if (state.flowMode) {
+      // Đã có flow mode, vào thẳng workspace
+      hideOnboarding();
+      renderAll();
+    } else {
+      // Chưa chọn, hiện onboarding
+      showOnboarding();
+    }
   });
 }
 
@@ -2781,6 +2797,79 @@ function handleOnboardingHotkeyRecord(e) {
   });
 
   showToast("Phím tắt đã được cập nhật!", "success");
+}
+
+// ========================================
+// Header Hotkey Recording (in workspace)
+// ========================================
+let isRecordingHeaderHotkey = false;
+
+function startHeaderHotkeyRecording() {
+  isRecordingHeaderHotkey = true;
+
+  // Show recording state
+  if (elements.headerHotkeyRecorder) {
+    elements.headerHotkeyRecorder.classList.add('recording');
+  }
+  if (elements.headerHotkeyDisplay) {
+    elements.headerHotkeyDisplay.textContent = 'Nhấn phím...';
+  }
+
+  // Listen for keydown
+  document.addEventListener('keydown', handleHeaderHotkeyRecord);
+}
+
+function handleHeaderHotkeyRecord(e) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  // Ignore modifier-only presses
+  if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
+    return;
+  }
+
+  // Save new hotkey
+  state.settings.hotkey = {
+    ctrl: e.ctrlKey || e.metaKey,
+    shift: e.shiftKey,
+    alt: e.altKey,
+    key: e.key === ' ' ? ' ' : e.key.toUpperCase()
+  };
+
+  saveState();
+
+  // Update display
+  updateHeaderHotkeyDisplay();
+
+  // Reset recording state
+  isRecordingHeaderHotkey = false;
+  if (elements.headerHotkeyRecorder) {
+    elements.headerHotkeyRecorder.classList.remove('recording');
+  }
+
+  // Remove listener
+  document.removeEventListener('keydown', handleHeaderHotkeyRecord);
+
+  // Notify background about new hotkey
+  chrome.runtime.sendMessage({
+    type: 'UPDATE_HOTKEY',
+    hotkey: state.settings.hotkey
+  });
+
+  showToast('Phím tắt đã được cập nhật!', 'success');
+}
+
+function updateHeaderHotkeyDisplay() {
+  if (!elements.headerHotkeyDisplay) return;
+
+  const { hotkey } = state.settings;
+  const parts = [];
+  if (hotkey.ctrl) parts.push('Ctrl');
+  if (hotkey.shift) parts.push('Shift');
+  if (hotkey.alt) parts.push('Alt');
+  parts.push(hotkey.key === ' ' ? 'Space' : hotkey.key);
+
+  elements.headerHotkeyDisplay.textContent = parts.join('+');
 }
 
 // Update flow status based on new mode

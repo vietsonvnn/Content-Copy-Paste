@@ -117,7 +117,42 @@ body {
 
 .header-actions {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Header hotkey display */
+.header-hotkey {
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.header-hotkey:hover {
+  background: rgba(255,255,255,0.25);
+  border-color: rgba(255,255,255,0.3);
+}
+
+.header-hotkey.recording {
+  background: rgba(255,193,7,0.3);
+  border-color: #ffc107;
+  animation: pulse 1s infinite;
+}
+
+.header-hotkey-display {
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+}
+
+.header-hotkey.recording .header-hotkey-display {
+  color: #ffc107;
 }
 
 .btn-icon {
