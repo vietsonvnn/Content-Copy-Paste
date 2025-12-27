@@ -45,14 +45,5 @@
       "js": ["js/content.js"],
       "css": ["css/content.css"]
     }
-  ],
-  "commands": {
-    "capture-text": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+G",
-        "mac": "Command+Shift+G"
-      },
-      "description": "Capture selected text to word counter"
-    }
-  }
+  ]
 }
