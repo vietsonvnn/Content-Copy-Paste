@@ -20,7 +20,7 @@
       </button>
 
       <div class="onboarding-header">
-        <img src="anhmau.png" alt="YeuTuBe" class="onboarding-logo-img">
+        <img src="icons/icon48.png" alt="YeuTuBe" class="onboarding-logo-img">
         <h1 class="onboarding-title">YeuTuBe</h1>
         <p class="onboarding-subtitle">Chọn loại bài viết để bắt đầu</p>
       </div>
@@ -64,7 +64,7 @@
       <!-- Header -->
       <header class="header">
         <div class="header-title">
-          <img src="anhmau.png" alt="YeuTuBe" class="header-logo-img">
+          <img src="icons/icon48.png" alt="YeuTuBe" class="header-logo-img">
           <h1>YeuTuBe</h1>
         </div>
         <div class="header-actions">
@@ -160,7 +160,17 @@
         <div class="flow-stage-section" id="stage1Section">
           <div class="flow-stage-header">
             <span class="stage-label">🚀 Khởi đầu & Outline</span>
-            <span class="stage-progress" id="stage1Progress">0/10</span>
+            <div class="stage-header-actions">
+              <button class="btn-import-outline" id="importOutlineBtn" title="Import số từ từ bảng Outline Gemini">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Import
+              </button>
+              <span class="stage-progress" id="stage1Progress">0/10</span>
+            </div>
           </div>
           <div class="flow-buttons-inline" id="setupFlowButtons">
             <!-- Buttons sẽ được generate động theo flowMode -->
@@ -178,16 +188,20 @@
           </div>
         </div>
 
-        <!-- Stage 3: Hoàn thành -->
+        <!-- Stage 3: Hoàn thành & Storyboard -->
         <div class="flow-stage-section" id="stage3Section">
           <div class="flow-stage-header">
             <span class="stage-label">✅ Hoàn thành</span>
-            <span class="stage-progress" id="stage3Progress">0/1</span>
+            <span class="stage-progress"><span id="stage3Progress">0/1</span> · <span id="stage4Progress">0/1</span></span>
           </div>
           <div class="flow-buttons-inline" id="finalFlowButtons">
             <button class="flow-btn flow-btn-hard flow-btn-final" data-step="final" data-type="hard">
               <span class="flow-btn-num">✓</span>
-              <span class="flow-btn-label">Kiểm tra cuối</span>
+              <span class="flow-btn-label">Kiểm tra</span>
+            </button>
+            <button class="flow-btn flow-btn-soft flow-btn-storyboard" data-step="storyboard" data-type="soft" title="💡 Upload file .srt lên Gemini trước">
+              <span class="flow-btn-num">🎬</span>
+              <span class="flow-btn-label">Storyboard</span>
             </button>
           </div>
         </div>
@@ -274,6 +288,38 @@
         <div class="modal-footer">
           <button class="btn btn-secondary" id="cancelWordCount">Hủy</button>
           <button class="btn btn-primary" id="saveWordCount">Lưu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import Outline Modal -->
+    <div class="modal" id="importOutlineModal">
+      <div class="modal-overlay"></div>
+      <div class="modal-content modal-md">
+        <div class="modal-header">
+          <h3>📥 Import Outline từ Gemini</h3>
+          <button class="btn-close" id="closeImportOutlineModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="import-hint">Paste bảng outline CSV từ Gemini vào đây (bao gồm cột "Số từ"):</p>
+          <textarea id="outlineTextarea" class="outline-textarea" rows="10" placeholder="STT,Nội dung chính,Số từ (Tiếng Hàn),Vai trò trong tâm lý người xem
+1,Mở đầu: Câu hỏi đồng cảm,450,Hook: Giữ chân trong 60 giây đầu tiên.
+2,Xây dựng uy tín,300,Ethos: Thiết lập niềm tin chuyên gia.
+..."></textarea>
+          <div class="import-preview" id="importPreview" style="display: none;">
+            <h4>Xem trước:</h4>
+            <div class="preview-grid" id="previewGrid">
+              <!-- Preview will be shown here -->
+            </div>
+            <div class="preview-total">
+              <span>Tổng:</span>
+              <span id="previewTotal">0 từ</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelImportOutline">Hủy</button>
+          <button class="btn btn-primary" id="applyImportOutline" disabled>Áp dụng</button>
         </div>
       </div>
     </div>

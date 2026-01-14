@@ -553,6 +553,137 @@ body {
 }
 
 /* ========================================
+   Import Outline Modal & Button
+   ======================================== */
+.modal-md {
+  max-width: 480px;
+}
+
+.stage-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-import-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  padding: 3px 6px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition);
+  font-weight: 500;
+}
+
+.btn-import-outline:hover {
+  background: #fff3e0;
+  border-color: #ff9800;
+  color: #e65100;
+}
+
+.btn-import-outline:hover svg {
+  stroke: #e65100;
+}
+
+.btn-import-outline svg {
+  stroke: var(--text-muted);
+  transition: var(--transition);
+}
+
+.import-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.outline-textarea {
+  width: 100%;
+  min-height: 150px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  resize: vertical;
+  transition: var(--transition);
+}
+
+.outline-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: var(--shadow-focus);
+}
+
+.outline-textarea::placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.import-preview {
+  margin-top: 12px;
+  padding: 10px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+}
+
+.import-preview h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.preview-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.preview-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  background: var(--bg);
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.preview-row-label {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.preview-row-words {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.preview-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.preview-total span:last-child {
+  color: var(--success);
+}
+
+/* ========================================
    Flow Card Compact
    ======================================== */
 .flow-card {
@@ -649,6 +780,40 @@ body {
   background: var(--error);
   color: white;
   border-color: var(--error);
+}
+
+/* SRT Upload Section */
+.srt-upload-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  margin-bottom: 6px;
+}
+
+.srt-reminder {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.flow-btn-storyboard {
+  background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+  border-color: #7b1fa2;
+}
+
+.flow-btn-storyboard:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ab47bc 0%, #8e24aa 100%);
+  transform: translateY(-1px);
+}
+
+.flow-btn-storyboard:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.flow-btn-storyboard.used {
+  background: linear-gradient(135deg, #ce93d8 0%, #ba68c8 100%);
 }
 
 /* Hotkey Inline */

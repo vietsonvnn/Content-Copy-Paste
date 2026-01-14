@@ -112,6 +112,21 @@ const WRITE_PART_TEMPLATE = {
 // Command kiểm tra cuối
 const FINAL_CHECK_COMMAND = 'Kiểm tra lại xem toàn bộ nội dung của bài viết trên tính đồng nhất và liên kết mạch hay không? Có nội dung nào bất hợp lý phi thực tế không? Kiểm tra lại xem đã đúng ngữ pháp Hàn cho người nghe chưa? Nếu có đoạn nào bất hợp lí mà nội dung có sai sự thật hay đề xuất.';
 
+// Command tạo Storyboard từ file SRT
+const STORYBOARD_COMMAND = `Dựa vào nội dung tôi vừa gửi lên, Với vai trò là một chuyên gia y tế, 1 đạo diễn hình ảnh chuyên nghiệp, thực hiện các yêu cầu:
+- Tạo Prompt chi tiết để tôi sử dụng tạo video ở veo 3
+- tạo mỗi câu 1 phân cảnh ở nội dung tôi vừa gửi lên
+- nếu có xuất hiện nhân vật thì tất cả phải là người hàn quốc lớn tuổi (korean),
+- bỏ qua cảnh bác sĩ giới thiệu
+- Tạo bảng chi tiết Storyboard: số thứ tự | thời gian để tôi có thể tạo ảnh khớp với nội dung | Lời thoại tương ứng (Key Script) | nội dung bằng tiếng việt | prompt |
+- Câu lệnh tạo ảnh chuyên nghiệp, phù hợp với phong cách và văn hoá của người Hàn Quốc. Sử dụng một phong cách chung nhất quán cho toàn bộ video (Health Documentary/Cinematic Realism).
+- Với các cảnh mô tả thận hay mạch máu, sử dụng từ khóa Medical illustration, Microscopic view để có hình ảnh chuyên nghiệp, tránh hình ảnh máu me ghê rợn.
+- Bỏ lời thoại của nhân vật, kết quả video chỉ có âm thanh của các hiệu ứng khác, không có tiếng người nói.
+Thông số kỹ thuật:
+Style: Photorealistic, 8k, cinematic lighting, high detail.
+Aspect Ratio: 16:9 (cho video YouTube).
+Negative Prompt (Những thứ cần tránh): Text, watermark, blurry, distorted face, extra fingers, cartoon, drawing, ugly, deformed.`;
+
 // Hàm lấy flow config theo mode
 function getFlowConfig() {
   return state.flowMode === 'hasTitle' ? FLOW_HAS_TITLE : FLOW_NO_TITLE;
@@ -154,6 +169,9 @@ function getStepLabel(step) {
   }
   if (step === 'final') {
     return 'Kiểm tra cuối';
+  }
+  if (step === 'storyboard') {
+    return 'Tạo Storyboard';
   }
   return `Bước ${step}`;
 }
@@ -205,6 +223,7 @@ const elements = {
   stage1Progress: document.getElementById('stage1Progress'),
   stage2Progress: document.getElementById('stage2Progress'),
   stage3Progress: document.getElementById('stage3Progress'),
+  stage4Progress: document.getElementById('stage4Progress'),
 
   // Flow Commands
   flowCard: document.getElementById('flowCard'),
@@ -289,7 +308,18 @@ const elements = {
   fsWords: document.getElementById('fsWords'),
   fsTarget: document.getElementById('fsTarget'),
   fsDiff: document.getElementById('fsDiff'),
-  fsTextarea: document.getElementById('fsTextarea')
+  fsTextarea: document.getElementById('fsTextarea'),
+
+  // Import Outline Modal
+  importOutlineBtn: document.getElementById('importOutlineBtn'),
+  importOutlineModal: document.getElementById('importOutlineModal'),
+  closeImportOutlineModal: document.getElementById('closeImportOutlineModal'),
+  cancelImportOutline: document.getElementById('cancelImportOutline'),
+  applyImportOutline: document.getElementById('applyImportOutline'),
+  outlineTextarea: document.getElementById('outlineTextarea'),
+  importPreview: document.getElementById('importPreview'),
+  previewGrid: document.getElementById('previewGrid'),
+  previewTotal: document.getElementById('previewTotal')
 };
 
 // ========================================
@@ -371,6 +401,26 @@ function setupEventListeners() {
   document.querySelectorAll('.preset-btn').forEach(btn => {
     btn.addEventListener('click', () => handlePreset(btn.dataset.preset));
   });
+
+  // Import Outline Modal
+  if (elements.importOutlineBtn) {
+    elements.importOutlineBtn.addEventListener('click', showImportOutlineModal);
+  }
+  if (elements.closeImportOutlineModal) {
+    elements.closeImportOutlineModal.addEventListener('click', hideImportOutlineModal);
+  }
+  if (elements.cancelImportOutline) {
+    elements.cancelImportOutline.addEventListener('click', hideImportOutlineModal);
+  }
+  if (elements.applyImportOutline) {
+    elements.applyImportOutline.addEventListener('click', applyImportedOutline);
+  }
+  if (elements.outlineTextarea) {
+    elements.outlineTextarea.addEventListener('input', handleOutlineTextareaInput);
+  }
+  if (elements.importOutlineModal) {
+    elements.importOutlineModal.querySelector('.modal-overlay').addEventListener('click', hideImportOutlineModal);
+  }
 
   // Flow buttons
   setupFlowButtonListeners();
@@ -605,6 +655,184 @@ function recalculateWordCounts() {
 
   // Save to storage
   chrome.storage.local.set({ wordCounts: wordCounts, numParts: state.numParts });
+}
+
+// ========================================
+// Import Outline Handlers
+// ========================================
+let parsedOutlineData = []; // Lưu kết quả parse tạm thời
+
+function parseOutlineFromText(text) {
+  const lines = text.trim().split('\n');
+  const result = [];
+
+  for (const line of lines) {
+    // Bỏ qua dòng header hoặc dòng TỔNG
+    if (line.toLowerCase().includes('stt') ||
+        line.toLowerCase().includes('tổng') ||
+        line.toLowerCase().includes('total') ||
+        line.trim() === '') {
+      continue;
+    }
+
+    // Parse CSV - xử lý cả dấu phẩy trong ngoặc kép
+    const parts = parseCSVLine(line);
+
+    if (parts.length >= 3) {
+      // Tìm cột số từ (thường là cột 3)
+      let wordCount = 0;
+      let partNum = 0;
+      let title = '';
+
+      // Cột 1: STT
+      const sttMatch = parts[0].match(/\d+/);
+      if (sttMatch) {
+        partNum = parseInt(sttMatch[0]);
+      }
+
+      // Cột 2: Nội dung chính
+      title = parts[1].trim();
+
+      // Cột 3: Số từ
+      const wordMatch = parts[2].match(/\d+/);
+      if (wordMatch) {
+        wordCount = parseInt(wordMatch[0]);
+      }
+
+      if (partNum > 0 && wordCount > 0) {
+        result.push({
+          part: partNum,
+          title: title,
+          words: wordCount
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  result.push(current.trim());
+  return result;
+}
+
+function showImportOutlineModal() {
+  elements.importOutlineModal.classList.add('active');
+  elements.outlineTextarea.value = '';
+  elements.importPreview.style.display = 'none';
+  elements.applyImportOutline.disabled = true;
+  parsedOutlineData = [];
+}
+
+function hideImportOutlineModal() {
+  elements.importOutlineModal.classList.remove('active');
+  elements.outlineTextarea.value = '';
+  parsedOutlineData = [];
+}
+
+function handleOutlineTextareaInput() {
+  const text = elements.outlineTextarea.value;
+
+  if (!text.trim()) {
+    elements.importPreview.style.display = 'none';
+    elements.applyImportOutline.disabled = true;
+    parsedOutlineData = [];
+    return;
+  }
+
+  parsedOutlineData = parseOutlineFromText(text);
+
+  if (parsedOutlineData.length === 0) {
+    elements.importPreview.style.display = 'none';
+    elements.applyImportOutline.disabled = true;
+    return;
+  }
+
+  // Hiển thị preview
+  elements.importPreview.style.display = 'block';
+  elements.applyImportOutline.disabled = false;
+
+  // Render preview grid
+  let previewHTML = '';
+  let totalWords = 0;
+
+  for (const item of parsedOutlineData) {
+    previewHTML += `
+      <div class="preview-row">
+        <span class="preview-row-label">P${item.part}: ${item.title.substring(0, 30)}${item.title.length > 30 ? '...' : ''}</span>
+        <span class="preview-row-words">${item.words.toLocaleString()} từ</span>
+      </div>
+    `;
+    totalWords += item.words;
+  }
+
+  elements.previewGrid.innerHTML = previewHTML;
+  elements.previewTotal.textContent = `${totalWords.toLocaleString()} từ`;
+}
+
+function applyImportedOutline() {
+  if (parsedOutlineData.length === 0) {
+    showToast('Không có dữ liệu để import', 'error');
+    return;
+  }
+
+  // Cập nhật số phần nếu khác
+  const newNumParts = parsedOutlineData.length;
+  if (newNumParts !== state.numParts) {
+    state.numParts = newNumParts;
+    elements.numPartsInput.value = newNumParts;
+  }
+
+  // Cập nhật wordCounts
+  wordCounts = {};
+  let totalWords = 0;
+
+  for (const item of parsedOutlineData) {
+    wordCounts[`P${item.part}`] = item.words;
+    totalWords += item.words;
+  }
+
+  // Cập nhật totalTarget
+  state.totalTarget = totalWords;
+  elements.totalTargetInput.value = totalWords;
+
+  // Lưu và cập nhật UI
+  chrome.storage.local.set({
+    wordCounts: wordCounts,
+    numParts: state.numParts,
+    totalTarget: state.totalTarget
+  });
+
+  // Render lại UI
+  renderPartButtons();
+  renderSetupFlowButtons();
+  setupFlowButtonListeners();
+  updateWordsSummaryBar();
+  updateStageProgress();
+  renderContentClipboard();
+  renderProgress();
+  saveState();
+
+  hideImportOutlineModal();
+  showToast(`Đã import ${newNumParts} phần với tổng ${totalWords.toLocaleString()} từ`, 'success');
 }
 
 // ========================================
@@ -948,7 +1176,7 @@ function setupFlowButtonListeners() {
 
     newBtn.addEventListener('click', () => {
       const stepAttr = newBtn.dataset.step;
-      const step = stepAttr === 'final' ? 'final' : parseInt(stepAttr);
+      const step = (stepAttr === 'final' || stepAttr === 'storyboard') ? stepAttr : parseInt(stepAttr);
       const type = newBtn.dataset.type; // 'hard' or 'soft'
       handleFlowButtonClick(step, type);
     });
@@ -1009,6 +1237,11 @@ function prepareCommand(step) {
     return FINAL_CHECK_COMMAND;
   }
 
+  // Storyboard command - user sẽ tự upload file SRT lên Gemini
+  if (step === 'storyboard') {
+    return STORYBOARD_COMMAND;
+  }
+
   // For dynamic part steps
   if (step >= startWriteIndex && step < startWriteIndex + numParts) {
     const partNum = step - startWriteIndex + 1;
@@ -1055,11 +1288,11 @@ function generatePartCommand(partNum) {
   const words = wordCounts[`P${partNum}`] || Math.round((state.totalTarget || 5000) / numParts);
 
   if (partNum === 1) {
-    return `Viết phần 1 bám sát tài liệu bài viết mẫu bên trên. Viết đủ ${words} từ có mở đầu tương tự bài viết mẫu bên trên. Nội dung được viết bằng tiếng Hàn, xưng hô "tôi" (저/제) và gọi khán giả là "bạn/các bạn" (여러분), phù hợp với văn hóa Hàn Quốc và các quy định của YouTube. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm`;
+    return `Viết phần 1 bám sát tài liệu bài viết mẫu bên trên. Viết đủ ${words} từ có mở đầu tương tự bài viết mẫu bên trên. Nội dung được viết bằng tiếng Hàn, xưng hô "tôi" (저/제) và gọi khán giả là "bạn/các bạn" (여러분), phù hợp với văn hóa Hàn Quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm. Nội dung được viết ra phải tuân thủ các Chính sách & An toàn nội dung YouTube (bao gồm là các lỗi về Hành vi không trung thực/Spam, Nguyên tắc cộng đồng, hay Bản quyền), đặc biệt là quy định về Thông tin y tế sai lệch (Medical Misinformation) và Spam/Lừa đảo (Spam & Deceptive Practices)`;
   } else if (partNum === numParts) {
-    return `Viết phần ${partNum} Kết thúc Part ${partNum} thật trọn vẹn theo đúng outline (đóng vòng cung đầy đủ, đưa ra lời khuyên cuối cùng để câu chuyện khép lại xúc động) bám sát tài liệu bài viết mẫu bên trên đủ ${words} từ không bao gồm dấu cách. Không viết trên canvas. Tiếp nối phần ${partNum - 1}, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm`;
+    return `Viết phần ${partNum} Kết thúc Part ${partNum} thật trọn vẹn theo đúng outline (đóng vòng cung đầy đủ, đưa ra lời khuyên cuối cùng để câu chuyện khép lại xúc động) bám sát tài liệu bài viết mẫu bên trên đủ ${words} từ không bao gồm dấu cách. Không viết trên canvas. Tiếp nối phần ${partNum - 1}, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm. Nội dung được viết ra phải tuân thủ các Chính sách & An toàn nội dung YouTube (bao gồm là các lỗi về Hành vi không trung thực/Spam, Nguyên tắc cộng đồng, hay Bản quyền), đặc biệt là quy định về Thông tin y tế sai lệch (Medical Misinformation) và Spam/Lừa đảo (Spam & Deceptive Practices)`;
   } else {
-    return `Viết phần ${partNum} bám sát tài liệu bài viết mẫu bên trên, viết đủ ${words} từ. Không viết trên canvas. Tiếp nối phần ${partNum - 1}, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm`;
+    return `Viết phần ${partNum} bám sát tài liệu bài viết mẫu bên trên, viết đủ ${words} từ. Không viết trên canvas. Tiếp nối phần ${partNum - 1}, nhớ gắn kết bài viết thành 1 mạch xuyên suốt logic với nhau, tuyến thời gian sao cho phù hợp. CHÚ Ý Văn phong kỹ thuật viết trả lại kết quả để làm nội dung Youtube chứ không phải biên tập như đạo diễn. Viết bằng tiếng Hàn quốc, văn phong và tôn giáo sử dụng nhiều ở Hàn quốc. Tất cả số đều viết thành chữ cái, loại bỏ toàn bộ ký tự đặc biệt bao gồm loại bỏ "*" "**" ký tự đóng mở ngoặc đơn hoặc kép,.... Đặt dấu phẩy ngắt nghỉ câu, cuối câu có dấu chấm. Nội dung được viết ra phải tuân thủ các Chính sách & An toàn nội dung YouTube (bao gồm là các lỗi về Hành vi không trung thực/Spam, Nguyên tắc cộng đồng, hay Bản quyền), đặc biệt là quy định về Thông tin y tế sai lệch (Medical Misinformation) và Spam/Lừa đảo (Spam & Deceptive Practices)`;
   }
 }
 
@@ -1785,6 +2018,7 @@ function renderAll() {
 }
 
 function updateFileDisplay() {
+  // Sample file display
   if (state.sampleFileName && elements.fileName) {
     elements.fileName.textContent = state.sampleFileName.length > 25
       ? state.sampleFileName.substring(0, 22) + '...'
@@ -1793,6 +2027,7 @@ function updateFileDisplay() {
     elements.fileName.title = state.sampleFileName;
     if (elements.clearFileBtn) elements.clearFileBtn.style.display = 'flex';
   }
+
 }
 
 function updateStageProgress() {
@@ -2742,24 +2977,37 @@ function renderPartFlowButtons() {
 function renderFinalFlowButton() {
   if (!elements.finalFlowButtons) return;
 
-  const isUsed = state.flowClickCounts["final"] > 0;
-  const clickCount = state.flowClickCounts["final"] || 0;
+  const isFinalUsed = state.flowClickCounts["final"] > 0;
+  const isStoryboardUsed = state.flowClickCounts["storyboard"] > 0;
 
   elements.finalFlowButtons.innerHTML = `
-    <button class="flow-btn flow-btn-hard flow-btn-final ${isUsed ? "used" : ""}"
+    <button class="flow-btn flow-btn-hard flow-btn-final ${isFinalUsed ? "used" : ""}"
             data-step="final" data-type="hard">
       <span class="flow-btn-num">✓</span>
-      <span class="flow-btn-label">Kiểm tra cuối</span>
+      <span class="flow-btn-label">Kiểm tra</span>
+    </button>
+    <button class="flow-btn flow-btn-soft flow-btn-storyboard ${isStoryboardUsed ? "used" : ""}"
+            data-step="storyboard" data-type="soft" title="💡 Upload file .srt lên Gemini trước">
+      <span class="flow-btn-num">🎬</span>
+      <span class="flow-btn-label">Storyboard</span>
     </button>
   `;
 
   // Update progress
   if (elements.stage3Progress) {
-    elements.stage3Progress.textContent = isUsed ? "1/1" : "0/1";
+    elements.stage3Progress.textContent = isFinalUsed ? "1/1" : "0/1";
+  }
+  if (elements.stage4Progress) {
+    elements.stage4Progress.textContent = isStoryboardUsed ? "1/1" : "0/1";
   }
 
   // Re-attach event listeners for new buttons
   setupFlowButtonListeners();
+}
+
+// Giữ lại để tương thích với code gọi hàm này
+function renderStoryboardButton() {
+  renderFinalFlowButton();
 }
 
 // Override renderAll để gọi các hàm mới
