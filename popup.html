@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YeuTuBe</title>
+  <link rel="stylesheet" href="css/popup.css">
+</head>
+<body>
+  <div class="app">
+    <!-- ========== ONBOARDING SCREEN (Bước 1) ========== -->
+    <div class="onboarding-screen" id="onboardingScreen">
+      <!-- Popout button -->
+      <button class="btn-icon onboarding-popout" id="onboardingPopoutBtn" title="Mở cửa sổ riêng">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
+        </svg>
+      </button>
+
+      <div class="onboarding-header">
+        <img src="anhmau.png" alt="YeuTuBe" class="onboarding-logo-img">
+        <h1 class="onboarding-title">YeuTuBe</h1>
+        <p class="onboarding-subtitle">Chọn loại bài viết để bắt đầu</p>
+      </div>
+
+      <div class="onboarding-options">
+        <button class="onboarding-option" id="optionHasTitle">
+          <span class="option-icon">📝</span>
+          <span class="option-title">Có Tiêu Đề</span>
+          <span class="option-desc">Đã có sẵn tiêu đề và bài mẫu đối thủ</span>
+        </button>
+        <button class="onboarding-option" id="optionNoTitle">
+          <span class="option-icon">💡</span>
+          <span class="option-title">Gợi Ý Tiêu Đề</span>
+          <span class="option-desc">Cần Gemini gợi ý tiêu đề trước</span>
+        </button>
+      </div>
+
+      <div class="onboarding-hotkey">
+        <div class="onboarding-hotkey-header">
+          <span class="hotkey-icon">⌨️</span>
+          <span class="hotkey-title">Phím tắt Capture</span>
+        </div>
+        <div class="hotkey-recorder-large" id="onboardingHotkeyRecorder">
+          <div class="hotkey-display-large" id="onboardingHotkeyDisplay">
+            <span class="hotkey-key-large">Ctrl</span>
+            <span class="hotkey-plus-large">+</span>
+            <span class="hotkey-key-large">Shift</span>
+            <span class="hotkey-plus-large">+</span>
+            <span class="hotkey-key-large">G</span>
+          </div>
+          <div class="hotkey-recording-large" id="onboardingHotkeyRecording" style="display: none;">
+            <span class="recording-text-large">Nhấn phím mới...</span>
+          </div>
+        </div>
+        <p class="hotkey-hint">Click vào ô trên để thay đổi phím tắt</p>
+      </div>
+    </div>
+
+    <!-- ========== MAIN WORKSPACE (Bước 2) ========== -->
+    <div class="workspace-screen" id="workspaceScreen" style="display: none;">
+      <!-- Header -->
+      <header class="header">
+        <div class="header-title">
+          <img src="anhmau.png" alt="YeuTuBe" class="header-logo-img">
+          <h1>YeuTuBe</h1>
+        </div>
+        <div class="header-actions">
+          <!-- Hotkey display/recorder -->
+          <div class="header-hotkey" id="headerHotkeyRecorder" title="Click để đổi phím tắt capture">
+            <span class="header-hotkey-display" id="headerHotkeyDisplay">Ctrl+Shift+G</span>
+          </div>
+          <button class="btn-icon" id="popoutBtn" title="Mở cửa sổ riêng">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </button>
+          <button class="btn-icon" id="resetBtn" title="Bài mới (Reset)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+              <path d="M3 3v5h5"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Single Tab Content -->
+    <div class="tab-content active" id="main-tab">
+      <!-- Progress Overview -->
+      <div class="progress-overview">
+        <div class="progress-info">
+          <span class="progress-text"><strong id="totalWritten">0</strong> / <span id="totalTarget">5,000</span> từ <span class="progress-overflow" id="progressOverflow"></span></span>
+          <span class="progress-percent" id="totalPercent">0%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="totalProgressBar" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Project Setup - Compact Collapsible -->
+      <div class="accordion-item compact-setup" id="setupAccordion">
+        <div class="accordion-header" data-target="setupContent">
+          <div class="accordion-header-left">
+            <span class="accordion-icon">📋</span>
+            <span class="accordion-title">Tham chiếu</span>
+            <span class="setup-summary" id="setupSummary"></span>
+          </div>
+          <span class="accordion-arrow">▼</span>
+        </div>
+        <div class="accordion-content" id="setupContent">
+          <div class="project-setup-compact">
+            <!-- Row 1: File + Title -->
+            <div class="setup-row">
+              <div class="setup-cell file-cell">
+                <input type="file" id="sampleFileInput" accept=".txt" style="display: none;">
+                <button class="btn btn-secondary btn-xs" id="browseFileBtn" title="Chọn file bài mẫu">📁</button>
+                <span class="file-name-compact" id="fileName" title="Chưa chọn file">Chưa chọn file</span>
+                <button class="btn-icon-xs btn-clear-file" id="clearFileBtn" title="Xóa file" style="display: none;">✕</button>
+              </div>
+              <div class="setup-cell title-cell">
+                <input type="text" id="titleInput" class="input-compact" placeholder="Tiêu đề bài viết...">
+              </div>
+            </div>
+            <!-- Row 2: Target + Parts -->
+            <div class="setup-row">
+              <div class="setup-cell">
+                <label class="label-mini">Target:</label>
+                <input type="number" id="totalTargetInput" class="input-mini" value="5000" min="100">
+                <span class="unit-mini">từ</span>
+              </div>
+              <div class="setup-cell">
+                <label class="label-mini">Phần:</label>
+                <input type="number" id="numPartsInput" class="input-mini" value="9" min="3" max="20">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Word Count Summary Bar - Hidden (can edit via soft buttons) -->
+      <div class="words-summary" id="wordsSummaryBar" style="display: none;">
+        <div class="words-summary-left">
+          <span class="words-summary-icon">📊</span>
+          <span class="words-summary-text" id="wordsSummaryText">P1:230 P2-8:800 P9:500</span>
+        </div>
+        <div class="words-summary-right">
+          <span class="words-summary-total" id="wordsSummaryTotal">= 6,130 từ</span>
+          <span class="words-summary-edit">✏️</span>
+        </div>
+      </div>
+
+      <!-- Flow Commands Card -->
+      <div class="card flow-card" id="flowCard">
+
+        <!-- Stage 1: Khởi đầu, Setup & Outline (gộp) -->
+        <div class="flow-stage-section" id="stage1Section">
+          <div class="flow-stage-header">
+            <span class="stage-label">🚀 Khởi đầu & Outline</span>
+            <span class="stage-progress" id="stage1Progress">0/10</span>
+          </div>
+          <div class="flow-buttons-inline" id="setupFlowButtons">
+            <!-- Buttons sẽ được generate động theo flowMode -->
+          </div>
+        </div>
+
+        <!-- Stage 2: Viết nội dung -->
+        <div class="flow-stage-section" id="stage2Section">
+          <div class="flow-stage-header">
+            <span class="stage-label">📝 Viết nội dung</span>
+            <span class="stage-progress" id="stage2Progress">0/9</span>
+          </div>
+          <div class="flow-buttons-inline" id="partButtonsContainer">
+            <!-- Part buttons will be generated dynamically -->
+          </div>
+        </div>
+
+        <!-- Stage 3: Hoàn thành -->
+        <div class="flow-stage-section" id="stage3Section">
+          <div class="flow-stage-header">
+            <span class="stage-label">✅ Hoàn thành</span>
+            <span class="stage-progress" id="stage3Progress">0/1</span>
+          </div>
+          <div class="flow-buttons-inline" id="finalFlowButtons">
+            <button class="flow-btn flow-btn-hard flow-btn-final" data-step="final" data-type="hard">
+              <span class="flow-btn-num">✓</span>
+              <span class="flow-btn-label">Kiểm tra cuối</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Command Editor (for soft buttons) -->
+      <div class="card" id="commandEditorCard" style="display: none;">
+        <div class="card-header">
+          <h3>✏️ <span id="editorStepLabel">Bước X</span></h3>
+          <button class="btn-text btn-sm" id="closeEditor">✕ Đóng</button>
+        </div>
+        <div class="command-editor-body">
+          <textarea id="commandEditor" rows="4" placeholder="Chỉnh sửa lệnh..."></textarea>
+          <div class="editor-actions">
+            <button class="btn btn-secondary btn-sm" id="resetCommand">↺ Reset</button>
+            <button class="btn btn-primary" id="sendCommand">🚀 Gửi lệnh</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content Clipboard Section -->
+      <div class="card content-clipboard-card" id="contentClipboardCard">
+        <div class="card-header">
+          <h3>📋 Nội dung các phần</h3>
+          <div class="card-header-actions">
+            <button class="btn-text btn-sm" id="openFullscreenBtn" title="Mở Full Screen">⛶ Mở rộng</button>
+            <button class="btn-text btn-sm" id="copyAllBtn">📋 Tất cả</button>
+            <button class="btn-text btn-sm" id="exportBtn">📤 Xuất</button>
+          </div>
+        </div>
+        <div class="content-clipboard-body">
+          <!-- Part selector tabs -->
+          <div class="part-tabs" id="partTabs">
+            <!-- Tabs generated dynamically -->
+          </div>
+          <!-- Content editor -->
+          <div class="content-editor-wrapper" id="contentEditorWrapper">
+            <div class="content-editor-header">
+              <span class="editor-part-label" id="editorPartLabel">Phần 1</span>
+              <div class="editor-word-stats">
+                <span class="editor-words" id="editorWords">0</span>
+                <span class="editor-separator">/</span>
+                <input type="number" class="editor-target-input" id="editorTarget" value="0" min="50">
+                <span class="editor-unit">từ</span>
+                <span class="editor-diff" id="editorDiff"></span>
+              </div>
+            </div>
+            <textarea class="content-editor-textarea" id="contentEditorTextarea"
+                      placeholder="Nội dung phần này sẽ hiển thị ở đây...&#10;&#10;• Bôi đen text trên Gemini&#10;• Nhấn hotkey để capture&#10;• Hoặc paste/gõ trực tiếp vào đây"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hidden legacy clipboard card -->
+      <div class="card" id="clipboardCard" style="display: none;">
+        <div class="clipboard-table-wrapper" id="clipboardTableWrapper"></div>
+      </div>
+    </div>
+    </div><!-- End workspace-screen -->
+
+    <!-- Word Count Modal -->
+    <div class="modal" id="wordCountModal">
+      <div class="modal-overlay"></div>
+      <div class="modal-content modal-sm">
+        <div class="modal-header">
+          <h3>📊 Chỉnh số từ mỗi phần</h3>
+          <button class="btn-close" id="closeWordCountModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="word-edit-grid" id="wordEditGrid">
+            <!-- Word inputs will be generated dynamically -->
+          </div>
+          <div class="word-edit-total">
+            <span>Tổng:</span>
+            <span class="word-edit-total-value" id="wordEditTotal">6,130 từ</span>
+          </div>
+          <div class="preset-buttons">
+            <button class="preset-btn" data-preset="3000">3000 từ</button>
+            <button class="preset-btn" data-preset="5000">5000 từ</button>
+            <button class="preset-btn" data-preset="8000">8000 từ</button>
+            <button class="preset-btn" data-preset="even">Chia đều</button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelWordCount">Hủy</button>
+          <button class="btn btn-primary" id="saveWordCount">Lưu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Capture Result Modal -->
+    <div class="modal" id="captureModal">
+      <div class="modal-overlay"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>📊 Kết quả Capture - <span id="modalPartLabel">Phần X</span></h3>
+          <button class="btn-close" id="closeModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <!-- Captured Text Preview -->
+          <div class="modal-captured-text">
+            <div class="modal-captured-header">
+              <span>📝 Nội dung đã capture:</span>
+              <button class="btn-text btn-sm" id="toggleCapturedText">Thu gọn ▲</button>
+            </div>
+            <div class="modal-captured-content" id="modalCapturedContent">
+              <!-- Text will be shown here -->
+            </div>
+          </div>
+
+          <!-- Stats -->
+          <div class="capture-stats">
+            <div class="capture-stat-row">
+              <div class="capture-stat">
+                <span class="capture-stat-label">Phần này</span>
+                <div class="capture-stat-values">
+                  <span class="captured-value" id="capturedWords">0</span>
+                  <span class="captured-separator">/</span>
+                  <span class="target-value" id="targetWords">0</span>
+                  <span class="unit">từ</span>
+                </div>
+                <div class="progress-bar small">
+                  <div class="progress-fill" id="captureProgressBar" style="width: 0%"></div>
+                </div>
+                <div class="capture-diff" id="captureDiff">+0 từ</div>
+              </div>
+              <div class="capture-stat">
+                <span class="capture-stat-label">Tổng bài viết</span>
+                <div class="capture-stat-values">
+                  <span class="captured-value" id="modalTotalWritten">0</span>
+                  <span class="captured-separator">/</span>
+                  <span class="target-value" id="modalTotalTarget">0</span>
+                  <span class="unit">từ</span>
+                </div>
+                <div class="progress-bar small">
+                  <div class="progress-fill" id="modalTotalProgressBar" style="width: 0%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="capture-actions">
+            <button class="capture-action" id="actionContinue">
+              <span class="action-icon">▶</span>
+              <div class="action-info">
+                <span class="action-title">Viết tiếp</span>
+                <span class="action-desc">Paste + Auto Enter</span>
+              </div>
+            </button>
+            <button class="capture-action" id="actionRewrite">
+              <span class="action-icon">✏️</span>
+              <div class="action-info">
+                <span class="action-title">Viết lại</span>
+                <span class="action-desc">Chỉ Paste, chờ bạn chỉnh & Enter</span>
+              </div>
+            </button>
+            <button class="capture-action action-done" id="actionDone">
+              <span class="action-icon">✓</span>
+              <div class="action-info">
+                <span class="action-title">Done</span>
+                <span class="action-desc">Chấp nhận kết quả này</span>
+              </div>
+            </button>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="cancelCapture">Hủy</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Content Modal -->
+    <div class="modal" id="viewContentModal">
+      <div class="modal-overlay"></div>
+      <div class="modal-content modal-lg">
+        <div class="modal-header">
+          <h3>📝 <span id="viewModalPartLabel">Phần X</span> - <span id="viewModalWordCount">0 từ</span></h3>
+          <button class="btn-close" id="closeViewModal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="view-content-text" id="viewContentText">
+            <!-- Full content will be shown here -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-primary" id="copyAll">📋 Sao chép tất cả</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Full Screen Editor Modal -->
+    <div class="modal" id="fullscreenEditorModal">
+      <div class="modal-overlay"></div>
+      <div class="modal-content modal-fullscreen">
+        <div class="modal-header fullscreen-header">
+          <div class="fullscreen-header-left">
+            <h3>📝 Nội dung bài viết</h3>
+            <div class="fullscreen-total-stats">
+              <span class="fullscreen-total-written" id="fsEditorTotalWritten">0</span>
+              <span class="fullscreen-separator">/</span>
+              <span class="fullscreen-total-target" id="fsEditorTotalTarget">5,000</span>
+              <span class="fullscreen-unit">từ</span>
+              <span class="fullscreen-percent" id="fsEditorPercent">0%</span>
+            </div>
+          </div>
+          <div class="fullscreen-header-right">
+            <button class="btn btn-secondary btn-sm" id="fsCopyAll">📋 Sao chép tất cả</button>
+            <button class="btn-close" id="closeFullscreenEditor">&times;</button>
+          </div>
+        </div>
+        <div class="modal-body fullscreen-body">
+          <!-- Part tabs for navigation -->
+          <div class="fullscreen-part-tabs" id="fsPartTabs">
+            <!-- Generated dynamically -->
+          </div>
+          <!-- Main editor area -->
+          <div class="fullscreen-editor-container">
+            <div class="fullscreen-editor-header">
+              <span class="fs-part-label" id="fsPartLabel">Phần 1</span>
+              <div class="fs-word-stats">
+                <span class="fs-words" id="fsWords">0</span>
+                <span class="fs-separator">/</span>
+                <input type="number" class="fs-target-input" id="fsTarget" value="0" min="50">
+                <span class="fs-unit">từ</span>
+                <span class="fs-diff" id="fsDiff"></span>
+              </div>
+            </div>
+            <textarea class="fullscreen-textarea" id="fsTextarea"
+                      placeholder="Nhập hoặc paste nội dung phần này..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+  </div>
+
+  <script src="js/popup.js"></script>
+</body>
+</html>
