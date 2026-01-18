@@ -670,14 +670,18 @@ function parseOutlineFromText(text) {
   // Tìm dòng header để xác định cột số từ
   for (const line of lines) {
     const lowerLine = line.toLowerCase();
-    if (lowerLine.includes('stt') || lowerLine.includes('phần') || lowerLine.includes('section')) {
+    // Detect header line
+    if (lowerLine.includes('stt') || lowerLine.includes('phần') ||
+        lowerLine.includes('section') || lowerLine.includes('tên phần')) {
       const headerParts = parseCSVLine(line);
       for (let i = 0; i < headerParts.length; i++) {
         const col = headerParts[i].toLowerCase();
-        // Tìm cột chứa "số từ" hoặc "từ" (không phải "tỷ" hay "%")
-        if ((col.includes('số từ') || col.includes('so tu') ||
-            (col.includes('từ') && !col.includes('tỷ'))) &&
-            !col.includes('%') && !col.includes('tỉ lệ') && !col.includes('ti le')) {
+        // Tìm cột chứa "số từ", "số lượng từ", "từ" (không phải "tỷ" hay "%")
+        // Patterns: "Số từ", "Số lượng từ", "Số từ tiếng Hàn", "Số từ (Tiếng Hàn)"
+        if ((col.includes('số từ') || col.includes('số lượng từ') ||
+            col.includes('so tu') || col.includes('word')) &&
+            !col.includes('%') && !col.includes('tỉ lệ') && !col.includes('ti le') &&
+            !col.includes('tỷ lệ') && !col.includes('ty le')) {
           wordCountColIndex = i;
           break;
         }
@@ -693,6 +697,8 @@ function parseOutlineFromText(text) {
     if (lowerLine.includes('stt') ||
         lowerLine.includes('phần (section)') ||
         lowerLine.includes('tên phần') ||
+        lowerLine.includes('vai trò') ||
+        lowerLine.includes('mục tiêu') ||
         lowerLine.startsWith('tổng') ||
         lowerLine.startsWith('total') ||
         line.trim() === '') {
@@ -718,9 +724,12 @@ function parseOutlineFromText(text) {
 
       // Tìm số từ - ưu tiên cột đã xác định từ header
       if (wordCountColIndex >= 0 && wordCountColIndex < parts.length) {
-        const wordMatch = parts[wordCountColIndex].match(/(\d+)\s*(từ)?/i);
+        // Pattern: "300 từ", "3.800 từ", "480", "~300"
+        const colValue = parts[wordCountColIndex].trim();
+        const wordMatch = colValue.match(/~?(\d+[.,]?\d*)\s*từ?/i);
         if (wordMatch) {
-          wordCount = parseInt(wordMatch[1]);
+          // Xử lý số có dấu chấm như 3.800 -> 3800
+          wordCount = parseInt(wordMatch[1].replace(/[.,]/g, ''));
         }
       }
 
@@ -728,17 +737,19 @@ function parseOutlineFromText(text) {
       if (wordCount === 0) {
         for (let i = 2; i < parts.length; i++) {
           const col = parts[i].trim();
-          // Tìm pattern "XXX từ" hoặc "XXX tu"
-          const tuMatch = col.match(/(\d+)\s*từ/i);
+
+          // Tìm pattern "XXX từ", "~XXX từ", "X.XXX từ"
+          const tuMatch = col.match(/~?(\d+[.,]?\d*)\s*từ/i);
           if (tuMatch) {
-            wordCount = parseInt(tuMatch[1]);
+            wordCount = parseInt(tuMatch[1].replace(/[.,]/g, ''));
             break;
           }
-          // Tìm số đơn thuần >= 50 và <= 2000 (hợp lý cho số từ 1 phần)
-          const numMatch = col.match(/^(\d+)$/);
+
+          // Tìm số đơn thuần >= 50 và <= 5000 (hợp lý cho số từ 1 phần)
+          const numMatch = col.match(/^~?(\d+)$/);
           if (numMatch) {
             const num = parseInt(numMatch[1]);
-            if (num >= 50 && num <= 2000) {
+            if (num >= 50 && num <= 5000) {
               wordCount = num;
               break;
             }
