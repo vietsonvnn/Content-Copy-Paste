@@ -665,12 +665,36 @@ let parsedOutlineData = []; // Lưu kết quả parse tạm thời
 function parseOutlineFromText(text) {
   const lines = text.trim().split('\n');
   const result = [];
+  let wordCountColIndex = -1; // Vị trí cột số từ
+
+  // Tìm dòng header để xác định cột số từ
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase();
+    if (lowerLine.includes('stt') || lowerLine.includes('phần') || lowerLine.includes('section')) {
+      const headerParts = parseCSVLine(line);
+      for (let i = 0; i < headerParts.length; i++) {
+        const col = headerParts[i].toLowerCase();
+        // Tìm cột chứa "số từ" hoặc "từ" (không phải "tỷ" hay "%")
+        if ((col.includes('số từ') || col.includes('so tu') ||
+            (col.includes('từ') && !col.includes('tỷ'))) &&
+            !col.includes('%') && !col.includes('tỉ lệ') && !col.includes('ti le')) {
+          wordCountColIndex = i;
+          break;
+        }
+      }
+      break;
+    }
+  }
 
   for (const line of lines) {
+    const lowerLine = line.toLowerCase();
+
     // Bỏ qua dòng header hoặc dòng TỔNG
-    if (line.toLowerCase().includes('stt') ||
-        line.toLowerCase().includes('tổng') ||
-        line.toLowerCase().includes('total') ||
+    if (lowerLine.includes('stt') ||
+        lowerLine.includes('phần (section)') ||
+        lowerLine.includes('tên phần') ||
+        lowerLine.startsWith('tổng') ||
+        lowerLine.startsWith('total') ||
         line.trim() === '') {
       continue;
     }
@@ -678,25 +702,48 @@ function parseOutlineFromText(text) {
     // Parse CSV - xử lý cả dấu phẩy trong ngoặc kép
     const parts = parseCSVLine(line);
 
-    if (parts.length >= 3) {
-      // Tìm cột số từ (thường là cột 3)
+    if (parts.length >= 2) {
       let wordCount = 0;
       let partNum = 0;
       let title = '';
 
-      // Cột 1: STT
-      const sttMatch = parts[0].match(/\d+/);
+      // Cột 1: STT (số thứ tự)
+      const sttMatch = parts[0].match(/^\d+$/);
       if (sttMatch) {
         partNum = parseInt(sttMatch[0]);
       }
 
-      // Cột 2: Nội dung chính
+      // Cột 2: Tên phần / Nội dung chính
       title = parts[1].trim();
 
-      // Cột 3: Số từ
-      const wordMatch = parts[2].match(/\d+/);
-      if (wordMatch) {
-        wordCount = parseInt(wordMatch[0]);
+      // Tìm số từ - ưu tiên cột đã xác định từ header
+      if (wordCountColIndex >= 0 && wordCountColIndex < parts.length) {
+        const wordMatch = parts[wordCountColIndex].match(/(\d+)\s*(từ)?/i);
+        if (wordMatch) {
+          wordCount = parseInt(wordMatch[1]);
+        }
+      }
+
+      // Nếu không tìm được, quét tất cả các cột tìm pattern "XXX từ" hoặc số >= 50
+      if (wordCount === 0) {
+        for (let i = 2; i < parts.length; i++) {
+          const col = parts[i].trim();
+          // Tìm pattern "XXX từ" hoặc "XXX tu"
+          const tuMatch = col.match(/(\d+)\s*từ/i);
+          if (tuMatch) {
+            wordCount = parseInt(tuMatch[1]);
+            break;
+          }
+          // Tìm số đơn thuần >= 50 và <= 2000 (hợp lý cho số từ 1 phần)
+          const numMatch = col.match(/^(\d+)$/);
+          if (numMatch) {
+            const num = parseInt(numMatch[1]);
+            if (num >= 50 && num <= 2000) {
+              wordCount = num;
+              break;
+            }
+          }
+        }
       }
 
       if (partNum > 0 && wordCount > 0) {
@@ -770,14 +817,16 @@ function handleOutlineTextareaInput() {
   elements.importPreview.style.display = 'block';
   elements.applyImportOutline.disabled = false;
 
-  // Render preview grid
+  // Render preview grid - sử dụng index để hiển thị P1, P2...
   let previewHTML = '';
   let totalWords = 0;
 
-  for (const item of parsedOutlineData) {
+  for (let i = 0; i < parsedOutlineData.length; i++) {
+    const item = parsedOutlineData[i];
+    const displayTitle = item.title.length > 25 ? item.title.substring(0, 25) + '...' : item.title;
     previewHTML += `
       <div class="preview-row">
-        <span class="preview-row-label">P${item.part}: ${item.title.substring(0, 30)}${item.title.length > 30 ? '...' : ''}</span>
+        <span class="preview-row-label">P${i + 1}: ${displayTitle}</span>
         <span class="preview-row-words">${item.words.toLocaleString()} từ</span>
       </div>
     `;
@@ -801,12 +850,14 @@ function applyImportedOutline() {
     elements.numPartsInput.value = newNumParts;
   }
 
-  // Cập nhật wordCounts
+  // Cập nhật wordCounts - sử dụng index thay vì item.part để đảm bảo liên tục
   wordCounts = {};
   let totalWords = 0;
 
-  for (const item of parsedOutlineData) {
-    wordCounts[`P${item.part}`] = item.words;
+  for (let i = 0; i < parsedOutlineData.length; i++) {
+    const item = parsedOutlineData[i];
+    // Gán theo thứ tự 1, 2, 3... thay vì dựa vào item.part
+    wordCounts[`P${i + 1}`] = item.words;
     totalWords += item.words;
   }
 
