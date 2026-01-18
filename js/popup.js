@@ -873,8 +873,9 @@ function applyImportedOutline() {
   });
 
   // Render lại UI
-  renderPartButtons();
+  renderPartFlowButtons();
   renderSetupFlowButtons();
+  renderFinalFlowButton();
   setupFlowButtonListeners();
   updateWordsSummaryBar();
   updateStageProgress();
