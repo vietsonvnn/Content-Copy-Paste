@@ -779,7 +779,13 @@ function parseCSVLine(line) {
     const char = line[i];
 
     if (char === '"') {
-      inQuotes = !inQuotes;
+      // Xử lý escaped quotes: "" trong CSV = một dấu " thực
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"'; // Thêm một dấu " vào kết quả
+        i++; // Bỏ qua dấu " tiếp theo
+      } else {
+        inQuotes = !inQuotes;
+      }
     } else if (char === ',' && !inQuotes) {
       result.push(current.trim());
       current = '';

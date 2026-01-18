@@ -138,6 +138,7 @@ function findInputElement() {
 // ========================================
 function injectCommand(text, autoEnter = true) {
   console.log('[CW] Starting injection...');
+  console.log('[CW] Text length:', text.length);
 
   const inputElement = findInputElement();
 
@@ -153,7 +154,7 @@ function injectCommand(text, autoEnter = true) {
     inputElement.focus();
     console.log('[CW] Focused');
 
-    // Step 2: Select all content using Selection API
+    // Step 2: Clear existing content
     const selection = window.getSelection();
     const range = document.createRange();
     range.selectNodeContents(inputElement);
@@ -161,9 +162,28 @@ function injectCommand(text, autoEnter = true) {
     selection.addRange(range);
     console.log('[CW] Selected all via Selection API');
 
-    // Step 3: Insert text using execCommand (bypass Trusted Types)
-    document.execCommand('insertText', false, text);
-    console.log('[CW] Inserted via execCommand');
+    // Step 3: Insert text - use different method for large text
+    if (text.length > 10000) {
+      // For large text: directly set innerHTML/innerText (faster, no lag)
+      console.log('[CW] Using direct insertion for large text');
+
+      // Clear first
+      inputElement.innerHTML = '';
+
+      // Create text node and append
+      const textNode = document.createTextNode(text);
+      inputElement.appendChild(textNode);
+
+      // Move cursor to end
+      range.selectNodeContents(inputElement);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } else {
+      // For normal text: use execCommand
+      document.execCommand('insertText', false, text);
+    }
+    console.log('[CW] Text inserted');
 
     // Step 4: Dispatch events to notify Gemini's framework
     inputElement.dispatchEvent(new Event('input', { bubbles: true }));
@@ -171,7 +191,7 @@ function injectCommand(text, autoEnter = true) {
     inputElement.dispatchEvent(new InputEvent('input', {
       bubbles: true,
       inputType: 'insertText',
-      data: text
+      data: text.substring(0, 100) // Only send first 100 chars in event data
     }));
     console.log('[CW] Events dispatched');
 
